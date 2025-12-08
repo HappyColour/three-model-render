@@ -1,0 +1,20 @@
+# Source files
+src/
+*.ts
+!*.d.ts
+
+# Config files
+tsconfig.json
+rollup.config.js
+
+# Development
+node_modules/
+.vscode/
+.idea/
+
+# Examples
+examples/
+
+# Misc
+*.log
+.DS_Store

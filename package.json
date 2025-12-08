@@ -1,0 +1,98 @@
+{
+    "name": "@chocozhang/three-model-render",
+    "version": "1.0.0",
+    "type": "module",
+    "description": "Professional Three.js model visualization and interaction toolkit with 14 high-performance utilities",
+    "main": "./dist/index.js",
+    "module": "./dist/index.mjs",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        },
+        "./core": {
+            "import": "./dist/core/index.mjs",
+            "require": "./dist/core/index.js",
+            "types": "./dist/core/index.d.ts"
+        },
+        "./interaction": {
+            "import": "./dist/interaction/index.mjs",
+            "require": "./dist/interaction/index.js",
+            "types": "./dist/interaction/index.d.ts"
+        },
+        "./camera": {
+            "import": "./dist/camera/index.mjs",
+            "require": "./dist/camera/index.js",
+            "types": "./dist/camera/index.d.ts"
+        },
+        "./loader": {
+            "import": "./dist/loader/index.mjs",
+            "require": "./dist/loader/index.js",
+            "types": "./dist/loader/index.d.ts"
+        },
+        "./ui": {
+            "import": "./dist/ui/index.mjs",
+            "require": "./dist/ui/index.js",
+            "types": "./dist/ui/index.d.ts"
+        },
+        "./effect": {
+            "import": "./dist/effect/index.mjs",
+            "require": "./dist/effect/index.js",
+            "types": "./dist/effect/index.d.ts"
+        },
+        "./setup": {
+            "import": "./dist/setup/index.mjs",
+            "require": "./dist/setup/index.js",
+            "types": "./dist/setup/index.d.ts"
+        }
+    },
+    "sideEffects": false,
+    "files": [
+        "dist",
+        "README.md",
+        "LICENSE"
+    ],
+    "keywords": [
+        "three",
+        "threejs",
+        "3d",
+        "model",
+        "visualization",
+        "webgl",
+        "renderer",
+        "interaction",
+        "camera",
+        "loader",
+        "typescript",
+        "performance"
+    ],
+    "author": "Your Name <your.email@example.com>",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/your-username/three-model-render.git"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "peerDependencies": {
+        "three": ">=0.160.0"
+    },
+    "devDependencies": {
+        "@rollup/plugin-node-resolve": "^15.2.3",
+        "@rollup/plugin-typescript": "^11.1.5",
+        "@types/three": "^0.160.0",
+        "rollup": "^4.9.0",
+        "rollup-plugin-dts": "^6.1.0",
+        "tslib": "^2.6.2",
+        "typescript": "^5.3.3"
+    },
+    "scripts": {
+        "build": "rollup -c",
+        "dev": "rollup -c -w",
+        "prepublishOnly": "npm run build",
+        "type-check": "tsc --noEmit"
+    }
+}
