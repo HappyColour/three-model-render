@@ -4,7 +4,7 @@
 
 A high-performance, TypeScript-first toolkit providing 14 optimized utilities for Three.js model visualization and interaction.
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/your-repo)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/HappyColour/three-model-render)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://www.typescriptlang.org/)
 
@@ -589,14 +589,14 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 ## 📄 License
 
-MIT © [Your Name]
+MIT © [Danny Zhang]
 
 ---
 
 ## 🔗 Links
 
-- [GitHub Repository](https://github.com/your-repo/three-model-render)
-- [Issue Tracker](https://github.com/your-repo/three-model-render/issues)
+- [GitHub Repository](https://github.com/HappyColour/three-model-render)
+- [Issue Tracker](https://github.com/HappyColour/three-model-render/issues)
 - [Three.js](https://threejs.org/)
 
 ---
