@@ -23,17 +23,17 @@ A high-performance, TypeScript-first toolkit providing 14 optimized utilities fo
 
 ### Using npm
 ```bash
-npm install three-model-render
+npm install @chocozhang/three-model-render
 ```
 
 ### Using yarn
 ```bash
-yarn add three-model-render
+yarn add @chocozhang/three-model-render
 ```
 
 ### Using pnpm
 ```bash
-pnpm add three-model-render
+pnpm add @chocozhang/three-model-render
 ```
 
 **Peer Dependencies:**
@@ -47,7 +47,7 @@ npm install three@^0.160.0
 
 ### Import全量 (Supports Tree-shaking)
 ```typescript
-import { followModels, addChildModelLabels, enableHoverBreath } from 'three-model-render'
+import { followModels, addChildModelLabels, enableHoverBreath } from '@chocozhang/three-model-render'
 
 // Use the utilities
 followModels(camera, model, {
@@ -59,9 +59,9 @@ followModels(camera, model, {
 ### Import按需 (Recommended)
 ```typescript
 // Only import what you need
-import { followModels } from 'three-model-render/camera'
-import { addChildModelLabels } from 'three-model-render/core'
-import { enableHoverBreath } from 'three-model-render/core'
+import { followModels } from '@chocozhang/three-model-render/camera'
+import { addChildModelLabels } from '@chocozhang/three-model-render/core'
+import { enableHoverBreath } from '@chocozhang/three-model-render/core'
 ```
 
 ---
@@ -125,7 +125,7 @@ Add floating 3D labels to model children with automatic position tracking.
 
 **Usage:**
 ```typescript
-import { addChildModelLabels } from 'three-model-render/core'
+import { addChildModelLabels } from '@chocozhang/three-model-render/core'
 
 const labelManager = addChildModelLabels(camera, renderer, model, {
   'part1': 'Component 1',
@@ -170,7 +170,7 @@ Breathing outline effect on hover with intelligent performance optimization.
 
 **Usage:**
 ```typescript
-import { enableHoverBreath } from 'three-model-render/core'
+import { enableHoverBreath } from '@chocozhang/three-model-render/core'
 
 const hoverEffect = enableHoverBreath({
   camera,
@@ -201,7 +201,7 @@ Initialize post-processing with resize handling and performance options.
 
 **Usage:**
 ```typescript
-import { initPostProcessing } from 'three-model-render/core'
+import { initPostProcessing } from '@chocozhang/three-model-render/core'
 
 const ppManager = initPostProcessing(renderer, scene, camera, {
   resolutionScale: 0.8,    // 80% resolution for better performance
@@ -233,7 +233,7 @@ Smoothly move camera to focus on target objects with easing animations.
 
 **Usage:**
 ```typescript
-import { followModels, cancelFollow } from 'three-model-render/camera'
+import { followModels, cancelFollow } from '@chocozhang/three-model-render/camera'
 
 await followModels(camera, targetMesh, {
   easing: 'easeInOut',           // 'linear' | 'easeIn' | 'easeOut' | 'easeInOut'
@@ -251,7 +251,7 @@ cancelFollow(camera)
 
 **Preset Angles:**
 ```typescript
-import { FOLLOW_ANGLES } from 'three-model-render/camera'
+import { FOLLOW_ANGLES } from '@chocozhang/three-model-render/camera'
 
 followModels(camera, model, {
   ...FOLLOW_ANGLES.ISOMETRIC  // 45° diagonal view
@@ -266,7 +266,7 @@ Quick view switching with smooth animations.
 
 **Usage:**
 ```typescript
-import { setView, ViewPresets } from 'three-model-render/camera'
+import { setView, ViewPresets } from '@chocozhang/three-model-render/camera'
 
 // Programmatic view
 await setView(camera, controls, model, 'front', {
@@ -302,7 +302,7 @@ Universal model loader supporting multiple formats.
 
 **Usage:**
 ```typescript
-import { loadModelByUrl } from 'three-model-render/loader'
+import { loadModelByUrl } from '@chocozhang/three-model-render/loader'
 
 const model = await loadModelByUrl('/path/to/model.fbx', {
   mergeGeometries: false,
@@ -333,7 +333,7 @@ Global singleton for managing HDR/EXR environment maps.
 
 **Usage:**
 ```typescript
-import { BlueSky } from 'three-model-render/loader'
+import { BlueSky } from '@chocozhang/three-model-render/loader'
 
 // Initialize
 BlueSky.init(renderer, scene, 1.0)
@@ -372,7 +372,7 @@ Create labels with connection lines and animations.
 
 **Usage:**
 ```typescript
-import { createModelsLabel } from 'three-model-render/ui'
+import { createModelsLabel } from '@chocozhang/three-model-render/ui'
 
 const labelMgr = createModelsLabel(camera, renderer, model, {
   'mesh1': 'Part A',
@@ -403,7 +403,7 @@ Model explosion effects with multiple arrangement modes.
 
 **Usage:**
 ```typescript
-import { GroupExploder } from 'three-model-render/effect'
+import { GroupExploder } from '@chocozhang/three-model-render/effect'
 
 const exploder = new GroupExploder(scene, camera, controls)
 exploder.init()
@@ -445,7 +445,7 @@ Automatically setup camera and lighting for a model.
 
 **Usage:**
 ```typescript
-import { autoSetupCameraAndLight } from 'three-model-render/setup'
+import { autoSetupCameraAndLight } from '@chocozhang/three-model-render/setup'
 
 const handle = autoSetupCameraAndLight(camera, scene, model, {
   enableShadows: true,
@@ -493,8 +493,8 @@ onUnmounted(() => {
 ### React
 ```tsx
 import { useEffect } from 'react'
-import { followModels } from 'three-model-render/camera'
-import { addChildModelLabels } from 'three-model-render/core'
+import { followModels } from '@chocozhang/three-model-render/camera'
+import { addChildModelLabels } from '@chocozhang/three-model-render/core'
 
 function ModelViewer() {
   useEffect(() => {
@@ -525,7 +525,7 @@ import type {
   PostProcessingManager,
   FollowOptions,
   ExplodeOptions
-} from 'three-model-render'
+} from '@chocozhang/three-model-render'
 ```
 
 ---

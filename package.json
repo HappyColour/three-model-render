@@ -1,6 +1,6 @@
 {
     "name": "@chocozhang/three-model-render",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "module",
     "description": "Professional Three.js model visualization and interaction toolkit with 14 high-performance utilities",
     "main": "./dist/index.js",
@@ -68,11 +68,11 @@
         "typescript",
         "performance"
     ],
-    "author": "Your Name <your.email@example.com>",
+    "author": "Danny Zhang <happyelement.danny@gmail.com>",
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/your-username/three-model-render.git"
+        "url": "https://github.com/HappyColour/three-model-render.git"
     },
     "publishConfig": {
         "access": "public"
