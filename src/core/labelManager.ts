@@ -18,7 +18,7 @@ interface LabelManager {
 }
 
 /**
- * 给 FBX 子模型添加头顶标签（支持 Mesh 和 Group）- 优化版
+ * 给子模型添加头顶标签（支持 Mesh 和 Group）- 优化版
  * 
  * ✨ 性能优化：
  * - 缓存包围盒，避免每帧重复计算
