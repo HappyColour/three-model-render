@@ -1,231 +1,228 @@
 # three-model-render
 
-> 🚀 Professional Three.js Model Visualization and Interaction Toolkit
+> 🚀 专业级 Three.js 模型可视化与交互工具库
 
-A high-performance, TypeScript-first toolkit providing 14 optimized utilities for Three.js model visualization and interaction.
+[English](./README_EN.md) | 中文
 
-> 🌟 **[Live Demo: Experience the Power](https://happycolour.github.io/)**
+一个高性能、TypeScript 优先的工具库，提供 14 个经过优化的实用工具，专注于解决 Three.js 模型可视化与交互中的常见问题。
 
-[![Version](https://img.shields.io/badge/version-1.0.2-blue.svg)](https://github.com/HappyColour/three-model-render)
+> 🌟 **[在线体验 Demo](https://happycolour.github.io/)**
+
+[![Version](https://img.shields.io/badge/version-1.0.4-blue.svg)](https://github.com/HappyColour/three-model-render)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://www.typescriptlang.org/)
 
-## ✨ Features
+## ✨ 核心特性
 
-- 🎯 **14 High-Performance Utilities** - Covering all aspects of model visualization
-- 📦 **Tree-Shakable** - Import only what you need
-- 🔷 **TypeScript First** - Full type definitions and IntelliSense support
-- ⚡ **Optimized** - 55% less CPU usage, 33% less memory
-- 🎨 **Easy Integration** - Works with Vue, React, and vanilla JS
-- 📝 **Well Documented** - Comprehensive API docs and examples
+- 🎯 **14 个高性能工具** - 覆盖从加载、展示到交互的全流程
+- 📦 **支持 Tree-Shaking** - 按需引入，体积更小
+- 🔷 **TypeScript 优先** - 完整的类型定义与智能提示
+- ⚡ **性能优化** - 相比原生实现，闲置 CPU 占用降低 55%，内存占用降低 33%
+- 🎨 **无缝集成** - 完美支持 Vue 3, React 及原生 JavaScript
+- 📝 **完善文档** - 提供最佳实践指引与完整示例
 
 ---
 
-## 📦 Installation
+## 📦 安装
 
 ```bash
-npm install @chocozhang/three-model-render
-# OR
-yarn add @chocozhang/three-model-render
-# OR
-pnpm add @chocozhang/three-model-render
+npm install @chocozhang/three-model-render@latest
+# 或
+pnpm add @chocozhang/three-model-render@latest
+# 或
+yarn add @chocozhang/three-model-render@latest
 ```
 
-**Peer Dependencies:**
+**对等依赖 (Peer Dependencies):**
+请确保你的项目中安装了 `three`:
 ```bash
 npm install three@^0.160.0
 ```
 
 ---
 
-## 🚀 Best Practice Workflow
+## 🚀 最佳实践工作流 (Best Practice Workflow)
 
-Build a professional 3D viewer following our optimized integration pattern. This workflow ensures maximum performance and visual quality.
+为了构建专业、高性能的 3D 查看器，我们建议遵循以下集成模式。此工作流经过生产环境验证，能确保最佳的视觉效果与性能表现。
 
-### 1. Core Setup & Model Loading
-Initialize your basic Three.js scene and load your model using our optimized loader.
+### 1. 基础环境与模型加载
+使用我们优化过的加载器初始化场景。它会自动处理 GLTF/GLB/FBX/OBJ 格式，并内置了 Draco 解码器配置。
 
 ```typescript
 import { loadModelByUrl } from '@chocozhang/three-model-render';
 
-// 1. Basic Three.js Setup
+// 1. 初始化基础场景
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer();
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 const controls = new OrbitControls(camera, renderer.domElement);
 
-// 2. Load Model with Progress
+// 2. 加载模型 (支持进度回调)
 const model = await loadModelByUrl('path/to/model.glb', {
-    manager: new THREE.LoadingManager(() => console.log('Loaded'))
+    manager: new THREE.LoadingManager(() => console.log('加载完成'))
 });
 scene.add(model);
 ```
 
-### 2. Auto-Configuration (Critical Step)
-Automatically position the camera and setup studio-quality lighting based on the model's bounding box.
+### 2. 自动场景配置 (关键步骤)
+根据模型的包围盒大小，自动计算最佳相机距离、近裁剪面(Near)和远裁剪面(Far)，并设置影棚级光照。
 
 ```typescript
 import { autoSetupCameraAndLight } from '@chocozhang/three-model-render/setup';
 
-// Automatically calculates optimal camera distance and lighting
-autoSetupCameraAndLight(camera, scene, model);
+// 一键配置相机与灯光
+const lightHandles = autoSetupCameraAndLight(camera, scene, model, {
+    enableShadows: true, // 开启阴影
+    intensity: 1.5       // 光照强度
+});
 ```
 
-### 3. Cinematic Entrance
-Create a smooth entry animation to focus on the model.
+### 3. 电影级入场动画
+模型加载后，使用平滑的运镜动画将视角聚焦到模型正面。
 
 ```typescript
 import { followModels, FOLLOW_ANGLES } from '@chocozhang/three-model-render';
 
 followModels(camera, model, {
-    ...FOLLOW_ANGLES.FRONT,
-    duration: 1500,
-    padding: 0.6,
-    controls,
-    easing: 'easeInOut'
+    ...FOLLOW_ANGLES.FRONT, // 使用预设角度
+    duration: 1500,         // 动画时长 1.5s
+    padding: 0.8,           // 留白比例
+    controls,               // 绑定控制器以同步状态
+    easing: 'easeInOut'     // 缓动函数
 });
 ```
 
-### 4. Post-Processing & Hover Effects
-Enable high-performance post-processing and optimized hover effects (saves 80% CPU when idle).
+### 4. 后期处理与呼吸光效
+启用高性能后期处理管线和智能呼吸光效（闲置时自动降低帧率以节省电量）。
 
 ```typescript
 import { initPostProcessing, enableHoverBreath } from '@chocozhang/three-model-render';
 
-// 1. Initialize Post-Processing Manager
+// 1. 初始化后期处理管理器
 const ppManager = initPostProcessing(renderer, scene, camera, {
-    resolutionScale: 0.8, // Optimize performance
-    edgeStrength: 4,
-    visibleEdgeColor: '#ffee00'
+    resolutionScale: 0.8, // 降低分辨率以提升性能
+    edgeStrength: 4,      // 描边强度
+    visibleEdgeColor: '#ffee00' // 描边颜色
 });
 
-// 2. Enable Smart Hover Effect
+// 2. 启用智能悬停效果
 const hoverController = enableHoverBreath({
     camera,
     scene,
     renderer,
     outlinePass: ppManager.outlinePass,
-    throttleDelay: 16, // 60fps limit
-    minStrength: 2,
-    maxStrength: 8,
-    speed: 3
+    throttleDelay: 16,    // 60fps 节流
+    minStrength: 2,       // 呼吸最小强度
+    maxStrength: 8,       // 呼吸最大强度
+    speed: 3              // 呼吸速度
 });
 
-// IMPORTANT: Add composer to your animation loop
+// 重要: 在动画循环中调用 render
 function animate() {
-    // ...
+    requestAnimationFrame(animate);
+    // 使用 composer 替代 renderer.render
     ppManager.composer.render();
 }
 ```
 
-### 5. Interaction Handling
-Add intelligent click handling that zooms to parts and triggers actions.
+### 5. 交互处理系统的集成
+添加智能点击事件，支持自动聚焦到被点击的组件。
 
 ```typescript
 import { createModelClickHandler } from '@chocozhang/three-model-render';
 
+// 创建点击处理器 (返回销毁函数)
 const disposeClickHandler = createModelClickHandler(
     camera, 
     scene, 
     renderer, 
     ppManager.outlinePass, 
     (object, info) => {
-        console.log('Clicked:', info);
+        console.log('点击了:', info);
         
-        // Zoom to clicked part
+        // 聚焦到被点击的部件
         followModels(camera, object, {
             ...FOLLOW_ANGLES.ISOMETRIC,
-            duration: 1500
+            duration: 1000
         });
     }
 );
 ```
 
-### 6. Advanced Effects (Explosion)
-Add interactive mesh explosion/disassembly effects.
+### 6. 高级特效：爆炸分解
+无需复杂计算，一行代码实现模型的爆炸分解视图。
 
 ```typescript
 import { GroupExploder } from '@chocozhang/three-model-render';
 
-// Initialize
+// 初始化爆炸控制器
 const exploder = new GroupExploder(scene, camera, controls);
 exploder.init();
 
-// Set Targets
+// 设置需要爆炸的网格集合
 exploder.setMeshes(targetMeshes);
 
-// Explode
+// 执行爆炸 (Grid 模式)
 exploder.explode({ 
-    mode: 'grid', 
-    spacing: 2.8, 
-    dimOthers: { enabled: true, opacity: 0.1 } 
+    mode: 'grid',    // 排列模式: 'ring' | 'spiral' | 'grid' | 'radial'
+    spacing: 2.8,    // 间距
+    dimOthers: { enabled: true, opacity: 0.1 } // 使其他物体透明
 });
 
-// Restore
+// 还原
 exploder.restore(600);
 ```
 
-### 7. View Control
-Easily switch between standard views.
+### 7. 视角快速切换
+提供标准的工程视角切换功能。
 
 ```typescript
 import { setView } from '@chocozhang/three-model-render';
 
-// Switch to Top View
+// 切换到顶视图
 setView(camera, controls, model, 'top');
-// Switch to Isometric
+
+// 切换到等轴测视图 (ISO)
 setView(camera, controls, model, 'iso');
 ```
 
 ---
 
-## 📚 Module Overview
+## 📚 模块总览 (Module Overview)
 
 ### **Core (`/core`)**
-- `initPostProcessing`: Performance-optimized post-processing manager.
-- `enableHoverBreath`: Idle-aware hover effects.
-- `addChildModelLabels`: 3D labeling system.
+- `initPostProcessing`: 高性能后期处理管理器，内置 OutlinePass。
+- `enableHoverBreath`: 智能呼吸光效，支持性能自适应。
+- `addChildModelLabels`: 3D 标签系统，自动跟随模型运动。
 
 ### **Camera (`/camera`)**
-- `followModels`: Smooth camera transitions.
-- `setView`: Preset view switching (Top, Front, Iso, etc.).
+- `followModels`: 智能相机跟随与聚焦。
+- `setView`: 预设视角切换 (Top, Front, Iso, etc.)。
 
 ### **Loader (`/loader`)**
-- `loadModelByUrl`: Robust model loader (GLTF, FBX, OBJ).
-- `BlueSky`: Environment map manager.
+- `loadModelByUrl`: 统一模型加载器，支持多种格式。
+- `BlueSky`: 快速创建天空盒环境。
 
 ### **Interaction (`/interaction`)**
-- `createModelClickHandler`: Raycasting click handler.
+- `createModelClickHandler`: 射线检测点击处理器。
 
 ### **Effect (`/effect`)**
-- `GroupExploder`: Mesh disassembly animations.
+- `GroupExploder`: 模型爆炸/拆解动画控制器。
 
 ### **Setup (`/setup`)**
-- `autoSetupCameraAndLight`: Instant scene configuration.
+- `autoSetupCameraAndLight`: 一键自动化场景配置大师。
 
 ---
 
-## 🎨 HTML/Vue 3 Example
+## 🎨 示例项目
 
-For a complete, deployable HTML/Vue 3 example demonstrating all these features, check `examples/html-best-practice/`.
+我们提供了一个完整的、可部署的示例项目，展示了所有功能的集成方式：
 
----
-
-## ⚙️ TypeScript Support
-
-Full TypeScript definitions included. Ensure your `tsconfig.json` matches:
-```json
-{
-  "compilerOptions": {
-    "lib": ["ES2015", "DOM"],
-    "target": "ES2015",
-    "module": "ESNext"
-  }
-}
-```
+- 👉 **[Vue 3 示例 (推荐)](https://github.com/HappyColour/three-model-render/tree/main/examples/vue-example)** - 完整的 Vue 3 + TypeScript 集成最佳实践
+- 👉 **[HTML 原生示例](https://github.com/HappyColour/three-model-render/tree/main/examples/html-example)** - 适合原生 JavaScript / jQuery 项目
 
 ---
 
-## 📄 License
+## 📄 开源协议
 
 MIT © [Danny Zhang]

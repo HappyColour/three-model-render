@@ -1,78 +1,88 @@
-// utils/BlueSkyManager.ts - 优化版
+/**
+ * @file blueSkyManager.ts
+ * @description
+ * Global singleton manager for loading and managing HDR/EXR blue sky environment maps.
+ *
+ * @best-practice
+ * - Call `init` once before use.
+ * - Use `loadAsync` to load skyboxes with progress tracking.
+ * - Automatically handles PMREM generation for realistic lighting.
+ */
+
 import * as THREE from 'three'
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js'
 
 /**
- * 加载进度回调类型
+ * Load progress callback type
  */
 export type LoadProgressCallback = (progress: number) => void
 
 /**
- * 加载选项
+ * Load options
  */
 export interface LoadSkyOptions {
-  background?: boolean              // 是否应用为场景背景，默认 true
-  onProgress?: LoadProgressCallback // 加载进度回调
-  onComplete?: () => void          // 加载完成回调
-  onError?: (error: any) => void   // 错误回调
+  background?: boolean              // Whether to apply as scene background, default true
+  onProgress?: LoadProgressCallback // Load progress callback
+  onComplete?: () => void          // Load complete callback
+  onError?: (error: any) => void   // Error callback
 }
 
 /**
- * BlueSkyManager - 优化版
+ * BlueSkyManager - Optimized
  * ---------------------------------------------------------
- * 一个全局单例管理器，用于加载和管理基于 HDR/EXR 的蓝天白云环境贴图。
- * 
- * ✨ 优化内容：
- * - 添加加载进度回调
- * - 支持加载取消
- * - 完善错误处理
- * - 返回 Promise 支持异步
- * - 添加加载状态管理
+ * A global singleton manager for loading and managing HDR/EXR based blue sky environment maps.
+ *
+ * Features:
+ * - Adds load progress callback
+ * - Supports load cancellation
+ * - Improved error handling
+ * - Returns Promise for async operation
+ * - Adds loading state management
  */
 class BlueSkyManager {
-  /** three.js 渲染器实例 */
+  /** three.js renderer instance */
   private renderer!: THREE.WebGLRenderer
 
-  /** three.js 场景实例 */
+  /** three.js scene instance */
   private scene!: THREE.Scene
 
-  /** PMREM 生成器，用于将 HDR/EXR 转换为高效的反射贴图 */
+  /** PMREM generator, used to convert HDR/EXR to efficient reflection maps */
   private pmremGen!: THREE.PMREMGenerator
 
-  /** 当前环境贴图的 RenderTarget，用于后续释放 */
+  /** RenderTarget for current environment map, used for subsequent disposal */
   private skyRT: THREE.WebGLRenderTarget | null = null
 
-  /** 是否已经初始化 */
+  /** Whether already initialized */
   private isInitialized = false
 
-  /** ✨ 当前加载器，用于取消加载 */
+  /** Current loader, used for cancelling load */
   private currentLoader: EXRLoader | null = null
 
-  /** ✨ 加载状态 */
+  /** Loading state */
   private loadingState: 'idle' | 'loading' | 'loaded' | 'error' = 'idle'
 
   /**
-   * 初始化
+   * Initialize
    * ---------------------------------------------------------
-   * 必须在使用 BlueSkyManager 之前调用一次。
-   * @param renderer WebGLRenderer 实例
-   * @param scene Three.js 场景
-   * @param exposure 曝光度 (默认 1.0)
+   * Must be called once before using BlueSkyManager.
+   * @param renderer WebGLRenderer instance
+   * @param scene Three.js Scene
+   * @param exposure Exposure (default 1.0)
    */
   init(renderer: THREE.WebGLRenderer, scene: THREE.Scene, exposure = 1.0) {
     if (this.isInitialized) {
-      console.warn('BlueSkyManager: 已经初始化，跳过重复初始化')
+      console.warn('BlueSkyManager: Already initialized, skipping duplicate initialization')
       return
     }
 
     this.renderer = renderer
     this.scene = scene
 
-    // 使用 ACESFilmicToneMapping，效果更接近真实
+    // Use ACESFilmicToneMapping, effect is closer to reality
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
     this.renderer.toneMappingExposure = exposure
 
-    // 初始化 PMREM 生成器（全局只需一个）
+    // Initialize PMREM generator (only one needed globally)
     this.pmremGen = new THREE.PMREMGenerator(renderer)
     this.pmremGen.compileEquirectangularShader()
 
@@ -80,10 +90,10 @@ class BlueSkyManager {
   }
 
   /**
-   * ✨ 加载蓝天 HDR/EXR 贴图并应用到场景（Promise 版本）
+   * Load blue sky HDR/EXR map and apply to scene (Promise version)
    * ---------------------------------------------------------
-   * @param exrPath HDR/EXR 文件路径
-   * @param options 加载选项
+   * @param exrPath HDR/EXR file path
+   * @param options Load options
    * @returns Promise<void>
    */
   loadAsync(exrPath: string, options: LoadSkyOptions = {}): Promise<void> {
@@ -91,7 +101,7 @@ class BlueSkyManager {
       return Promise.reject(new Error('BlueSkyManager not initialized!'))
     }
 
-    // ✨ 取消之前的加载
+    // Cancel previous load
     this.cancelLoad()
 
     const {
@@ -107,23 +117,23 @@ class BlueSkyManager {
     return new Promise((resolve, reject) => {
       this.currentLoader!.load(
         exrPath,
-        // 成功回调
+        // Success callback
         (texture) => {
           try {
-            // 设置贴图为球面反射映射
+            // Set texture mapping to EquirectangularReflectionMapping
             texture.mapping = THREE.EquirectangularReflectionMapping
 
-            // 清理旧的环境贴图
+            // Clear old environment map
             this.dispose()
 
-            // 用 PMREM 生成高效的环境贴图
+            // Generate efficient environment map using PMREM
             this.skyRT = this.pmremGen.fromEquirectangular(texture)
 
-            // 应用到场景：环境光照 & 背景
+            // Apply to scene: Environment Lighting & Background
             this.scene.environment = this.skyRT.texture
             if (background) this.scene.background = this.skyRT.texture
 
-            // 原始 HDR/EXR 贴图用完即销毁，节省内存
+            // Dispose original HDR/EXR texture immediately to save memory
             texture.dispose()
 
             this.loadingState = 'loaded'
@@ -141,14 +151,14 @@ class BlueSkyManager {
             reject(error)
           }
         },
-        // 进度回调
+        // Progress callback
         (xhr) => {
           if (onProgress && xhr.lengthComputable) {
             const progress = xhr.loaded / xhr.total
             onProgress(progress)
           }
         },
-        // 错误回调
+        // Error callback
         (err) => {
           this.loadingState = 'error'
           this.currentLoader = null
@@ -161,10 +171,10 @@ class BlueSkyManager {
   }
 
   /**
-   * 加载蓝天 HDR/EXR 贴图并应用到场景（同步 API，保持向后兼容）
+   * Load blue sky HDR/EXR map and apply to scene (Sync API, for backward compatibility)
    * ---------------------------------------------------------
-   * @param exrPath HDR/EXR 文件路径
-   * @param background 是否应用为场景背景 (默认 true)
+   * @param exrPath HDR/EXR file path
+   * @param background Whether to apply as scene background (default true)
    */
   load(exrPath: string, background = true) {
     this.loadAsync(exrPath, { background }).catch((error) => {
@@ -173,35 +183,35 @@ class BlueSkyManager {
   }
 
   /**
-   * ✨ 取消当前加载
+   * Cancel current load
    */
   cancelLoad() {
     if (this.currentLoader) {
-      // EXRLoader 本身没有 abort 方法，但我们可以清空引用
+      // EXRLoader itself does not have abort method, but we can clear the reference
       this.currentLoader = null
       this.loadingState = 'idle'
     }
   }
 
   /**
-   * ✨ 获取加载状态
+   * Get loading state
    */
   getLoadingState(): 'idle' | 'loading' | 'loaded' | 'error' {
     return this.loadingState
   }
 
   /**
-   * ✨ 是否正在加载
+   * Is loading
    */
   isLoading(): boolean {
     return this.loadingState === 'loading'
   }
 
   /**
-   * 释放当前的天空贴图资源
+   * Release current sky texture resources
    * ---------------------------------------------------------
-   * 仅清理 skyRT，不销毁 PMREM
-   * 适用于切换 HDR/EXR 文件时调用
+   * Only cleans up skyRT, does not destroy PMREM
+   * Suitable for calling when switching HDR/EXR files
    */
   dispose() {
     if (this.skyRT) {
@@ -214,10 +224,10 @@ class BlueSkyManager {
   }
 
   /**
-   * 完全销毁 BlueSkyManager
+   * Completely destroy BlueSkyManager
    * ---------------------------------------------------------
-   * 包括 PMREMGenerator 的销毁
-   * 通常在场景彻底销毁或应用退出时调用
+   * Includes destruction of PMREMGenerator
+   * Usually called when the scene is completely destroyed or the application exits
    */
   destroy() {
     this.cancelLoad()
@@ -229,9 +239,9 @@ class BlueSkyManager {
 }
 
 /**
- * 🌐 全局单例
+ * Global Singleton
  * ---------------------------------------------------------
- * 直接导出一个全局唯一的 BlueSkyManager 实例，
- * 保证整个应用中只用一个 PMREMGenerator，性能最佳。
+ * Directly export a globally unique BlueSkyManager instance,
+ * Ensuring only one PMREMGenerator is used throughout the application for best performance.
  */
 export const BlueSky = new BlueSkyManager()

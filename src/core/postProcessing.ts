@@ -1,3 +1,14 @@
+/**
+ * @file postProcessing.ts
+ * @description
+ * Manages the post-processing chain, specifically for Outline effects and Gamma correction.
+ *
+ * @best-practice
+ * - call `initPostProcessing` after creating your renderer and scene.
+ * - Use the returned `composer` in your render loop instead of `renderer.render`.
+ * - Handles resizing automatically via the `resize` method.
+ */
+
 import * as THREE from 'three'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer'
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass'
@@ -6,19 +17,19 @@ import { GammaCorrectionShader } from 'three/examples/jsm/shaders/GammaCorrectio
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass'
 
 /**
- * 后期处理配置选项
+ * Post-processing configuration options
  */
 export interface PostProcessingOptions {
-  edgeStrength?: number      // 描边强度，默认 4
-  edgeGlow?: number          // 描边发光，默认 1
-  edgeThickness?: number     // 描边厚度，默认 2
-  visibleEdgeColor?: string  // 可见描边颜色，默认 '#ffee00'
-  hiddenEdgeColor?: string   // 隐藏描边颜色，默认 '#000000'
-  resolutionScale?: number   // 分辨率缩放，默认 1.0（设置为 0.5 可提升性能）
+  edgeStrength?: number      // Edge strength, default 4
+  edgeGlow?: number          // Edge glow, default 1
+  edgeThickness?: number     // Edge thickness, default 2
+  visibleEdgeColor?: string  // Visible edge color, default '#ffee00'
+  hiddenEdgeColor?: string   // Hidden edge color, default '#000000'
+  resolutionScale?: number   // Resolution scale, default 1.0 (set to 0.5 to improve performance)
 }
 
 /**
- * 后期处理管理接口
+ * Post-processing management interface
  */
 export interface PostProcessingManager {
   composer: EffectComposer
@@ -28,18 +39,18 @@ export interface PostProcessingManager {
 }
 
 /**
- * 初始化描边相关信息（包含 OutlinePass）- 优化版
- * 
- * ✨ 功能增强：
- * - 支持窗口 resize 自动更新
- * - 可配置分辨率缩放提升性能
- * - 完善的资源释放管理
- * 
+ * Initialize outline-related information (contains OutlinePass)
+ *
+ * Capabilities:
+ * - Supports automatic update on window resize
+ * - Configurable resolution scale for performance improvement
+ * - Comprehensive resource disposal management
+ *
  * @param renderer THREE.WebGLRenderer
  * @param scene THREE.Scene
  * @param camera THREE.Camera
- * @param options PostProcessingOptions - 可选配置
- * @returns PostProcessingManager - 包含 composer/outlinePass/resize/dispose 的管理接口
+ * @param options PostProcessingOptions - Optional configuration
+ * @returns PostProcessingManager - Management interface containing composer/outlinePass/resize/dispose
  */
 export function initPostProcessing(
   renderer: THREE.WebGLRenderer,
@@ -47,7 +58,7 @@ export function initPostProcessing(
   camera: THREE.Camera,
   options: PostProcessingOptions = {}
 ): PostProcessingManager {
-  // 默认配置
+  // Default configuration
   const {
     edgeStrength = 4,
     edgeGlow = 1,
@@ -57,7 +68,7 @@ export function initPostProcessing(
     resolutionScale = 1.0
   } = options
 
-  // 获取渲染器实际尺寸
+  // Get renderer actual size
   const getSize = () => {
     const width = renderer.domElement.clientWidth
     const height = renderer.domElement.clientHeight
@@ -69,14 +80,14 @@ export function initPostProcessing(
 
   const size = getSize()
 
-  // 创建 EffectComposer
+  // Create EffectComposer
   const composer = new EffectComposer(renderer)
 
-  // 基础 RenderPass
+  // Basic RenderPass
   const renderPass = new RenderPass(scene, camera)
   composer.addPass(renderPass)
 
-  // OutlinePass 用于模型描边
+  // OutlinePass for model outlining
   const outlinePass = new OutlinePass(
     new THREE.Vector2(size.width, size.height),
     scene,
@@ -89,38 +100,38 @@ export function initPostProcessing(
   outlinePass.hiddenEdgeColor.set(hiddenEdgeColor)
   composer.addPass(outlinePass)
 
-  // Gamma 校正
+  // Gamma correction
   const gammaPass = new ShaderPass(GammaCorrectionShader)
   composer.addPass(gammaPass)
 
   /**
-   * resize 处理函数
-   * @param width 可选宽度，不传则使用 renderer.domElement 的实际宽度
-   * @param height 可选高度，不传则使用 renderer.domElement 的实际高度
+   * Handle resize
+   * @param width Optional width, uses renderer.domElement actual width if not provided
+   * @param height Optional height, uses renderer.domElement actual height if not provided
    */
   const resize = (width?: number, height?: number) => {
     const actualSize = width !== undefined && height !== undefined
       ? { width: Math.floor(width * resolutionScale), height: Math.floor(height * resolutionScale) }
       : getSize()
 
-    // 更新 composer 尺寸
+    // Update composer size
     composer.setSize(actualSize.width, actualSize.height)
 
-    // 更新 outlinePass 分辨率
+    // Update outlinePass resolution
     outlinePass.resolution.set(actualSize.width, actualSize.height)
   }
 
   /**
-   * 释放资源
+   * Dispose resources
    */
   const dispose = () => {
-    // 释放所有 passes
+    // Dipose all passes
     composer.passes.forEach(pass => {
       if (pass.dispose) {
         pass.dispose()
       }
     })
-    // 清空 passes 数组
+    // Clear passes array
     composer.passes.length = 0
   }
 
@@ -131,4 +142,3 @@ export function initPostProcessing(
     dispose
   }
 }
-

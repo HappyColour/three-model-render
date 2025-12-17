@@ -1,4 +1,14 @@
-// src/utils/hoverBreathEffectByNameSingleton.ts
+/**
+ * @file hoverEffect.ts
+ * @description
+ * Singleton highlight effect manager. Uses OutlinePass to create a breathing highlight effect on hovered objects.
+ *
+ * @best-practice
+ * - Initialize once in your setup/mounted hook.
+ * - Call `updateHighlightNames` to filter which objects are interactive.
+ * - Automatically handles mousemove throttling and cleanup on dispose.
+ */
+
 import * as THREE from 'three'
 import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass'
 
@@ -7,22 +17,22 @@ export type HoverBreathOptions = {
   scene: THREE.Scene
   renderer: THREE.WebGLRenderer
   outlinePass: OutlinePass
-  // highlightNames: null => 全部对象都可高亮; [] => 无对象可高亮; ['A','B'] => 指定 name 列表
+  // highlightNames: null => All objects highlightable; [] => No objects highlightable; ['A','B'] => Only specified names
   highlightNames?: string[] | null
   minStrength?: number
   maxStrength?: number
   speed?: number
-  throttleDelay?: number // mousemove 节流延迟（ms），默认 16ms (≈60fps)
+  throttleDelay?: number // mousemove throttle delay (ms), default 16ms (~60fps)
 }
 
 /**
- * 创建单例高亮器 —— 推荐在 mounted 时创建一次
- * 返回 { updateHighlightNames, dispose, getHoveredName } 接口
- * 
- * ✨ 性能优化：
- * - 无 hover 对象时自动暂停动画
- * - mousemove 节流处理，避免过度计算
- * - 使用 passive 事件监听器提升滚动性能
+ * Create a singleton highlighter - Recommended to create once on mount
+ * Returns { updateHighlightNames, dispose, getHoveredName } interface
+ *
+ * Features:
+ * - Automatically pauses animation when no object is hovered
+ * - Throttles mousemove events to avoid excessive calculation
+ * - Uses passive event listeners to improve scrolling performance
  */
 export function enableHoverBreath(opts: HoverBreathOptions) {
   const {
@@ -34,7 +44,7 @@ export function enableHoverBreath(opts: HoverBreathOptions) {
     minStrength = 2,
     maxStrength = 5,
     speed = 4,
-    throttleDelay = 16, // 默认约 60fps
+    throttleDelay = 16, // Default ~60fps
   } = opts
 
   const raycaster = new THREE.Raycaster()
@@ -42,20 +52,20 @@ export function enableHoverBreath(opts: HoverBreathOptions) {
   let hovered: THREE.Object3D | null = null
   let time = 0
   let animationId: number | null = null
-  // highlightSet: null 表示 all; empty Set 表示 none
+  // highlightSet: null means all; empty Set means none
   let highlightSet: Set<string> | null = highlightNames === null ? null : new Set(highlightNames)
 
-  // 节流相关
+  // Throttling related
   let lastMoveTime = 0
   let rafPending = false
 
   function setHighlightNames(names: string[] | null) {
     highlightSet = names === null ? null : new Set(names)
-    // 如果当前 hovered 不在新名单中，及时清理 selection
+    // If current hovered object is not in the new list, clean up selection immediately
     if (hovered && highlightSet && !highlightSet.has(hovered.name)) {
       hovered = null
       outlinePass.selectedObjects = []
-      // 暂停动画
+      // Pause animation
       if (animationId !== null) {
         cancelAnimationFrame(animationId)
         animationId = null
@@ -64,14 +74,14 @@ export function enableHoverBreath(opts: HoverBreathOptions) {
   }
 
   /**
-   * 节流版本的 mousemove 处理
+   * Throttled mousemove handler
    */
   function onMouseMove(ev: MouseEvent) {
     const now = performance.now()
 
-    // 节流：如果距上次处理时间小于阈值，跳过
+    // Throttle: if time since last process is less than threshold, skip
     if (now - lastMoveTime < throttleDelay) {
-      // 使用 RAF 延迟处理，避免丢失最后一次事件
+      // Use RAF to process the latest event later, ensuring the last event isn't lost
       if (!rafPending) {
         rafPending = true
         requestAnimationFrame(() => {
@@ -87,7 +97,7 @@ export function enableHoverBreath(opts: HoverBreathOptions) {
   }
 
   /**
-   * 实际的 mousemove 逻辑
+   * Actual mousemove logic
    */
   function processMouseMove(ev: MouseEvent) {
     const rect = renderer.domElement.getBoundingClientRect()
@@ -95,18 +105,18 @@ export function enableHoverBreath(opts: HoverBreathOptions) {
     mouse.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1
 
     raycaster.setFromCamera(mouse, camera)
-    // 深度检测 scene 的所有子对象（true）
+    // Deep detect all children of the scene (true)
     const intersects = raycaster.intersectObjects(scene.children, true)
 
     if (intersects.length > 0) {
       const obj = intersects[0].object
-      // 判断是否允许被高亮
+      // Determine if it is allowed to be highlighted
       const allowed = highlightSet === null ? true : highlightSet.has(obj.name)
       if (allowed) {
         if (hovered !== obj) {
           hovered = obj
           outlinePass.selectedObjects = [obj]
-          // 启动动画（如果未运行）
+          // Start animation (if not running)
           if (animationId === null) {
             animate()
           }
@@ -115,7 +125,7 @@ export function enableHoverBreath(opts: HoverBreathOptions) {
         if (hovered !== null) {
           hovered = null
           outlinePass.selectedObjects = []
-          // 停止动画
+          // Stop animation
           if (animationId !== null) {
             cancelAnimationFrame(animationId)
             animationId = null
@@ -126,7 +136,7 @@ export function enableHoverBreath(opts: HoverBreathOptions) {
       if (hovered !== null) {
         hovered = null
         outlinePass.selectedObjects = []
-        // 停止动画
+        // Stop animation
         if (animationId !== null) {
           cancelAnimationFrame(animationId)
           animationId = null
@@ -136,10 +146,10 @@ export function enableHoverBreath(opts: HoverBreathOptions) {
   }
 
   /**
-   * 动画循环 - 只在有 hovered 对象时运行
+   * Animation loop - only runs when there is a hovered object
    */
   function animate() {
-    // 如果没有 hovered 对象，停止动画
+    // If no hovered object, stop animation
     if (!hovered) {
       animationId = null
       return
@@ -151,13 +161,13 @@ export function enableHoverBreath(opts: HoverBreathOptions) {
     outlinePass.edgeStrength = strength
   }
 
-  // 启动（只调用一次）
-  // 使用 passive 提升滚动性能
+  // Start (called only once)
+  // Use passive to improve scrolling performance
   renderer.domElement.addEventListener('mousemove', onMouseMove, { passive: true })
 
-  // 注意：不在这里启动 animate，等有 hover 对象时再启动
+  // Note: Do not start animate here, wait until there is a hover object
 
-  // refresh: 如果你在某些情况下需要强制清理 selectedObjects
+  // refresh: Forcibly clean up selectedObjects if needed
   function refreshSelection() {
     if (hovered && highlightSet && !highlightSet.has(hovered.name)) {
       hovered = null
@@ -180,7 +190,7 @@ export function enableHoverBreath(opts: HoverBreathOptions) {
       animationId = null
     }
     outlinePass.selectedObjects = []
-    // 清空引用
+    // Clear references
     hovered = null
     highlightSet = null
   }
@@ -192,4 +202,3 @@ export function enableHoverBreath(opts: HoverBreathOptions) {
     getHoveredName,
   }
 }
-

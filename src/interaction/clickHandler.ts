@@ -1,38 +1,49 @@
+/**
+ * @file clickHandler.ts
+ * @description
+ * Tool for handling model clicks and highlighting (OutlinePass version).
+ *
+ * @best-practice
+ * - Use `createModelClickHandler` to setup interaction.
+ * - Handles debouncing and click threshold automatically.
+ * - Cleanup using the returned dispose function.
+ */
+
 import * as THREE from 'three';
 import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass';
 
 /**
- * 点击处理器配置选项
+ * Click Handler Options
  */
 export interface ClickHandlerOptions {
-  clickThreshold?: number                    // 拖动判定阈值，默认 3px
-  debounceDelay?: number                     // 防抖延迟，默认 0（不防抖）
-  raycasterParams?: {                        // Raycaster 自定义参数
+  clickThreshold?: number                    // Drag threshold, default 3px
+  debounceDelay?: number                     // Debounce delay, default 0 (no debounce)
+  raycasterParams?: {                        // RAYCASTER custom parameters
     near?: number
     far?: number
     pointsPrecision?: number
   }
-  enableDynamicThickness?: boolean           // 是否启用动态描边厚度，默认 true
-  minThickness?: number                      // 最小描边厚度，默认 1
-  maxThickness?: number                      // 最大描边厚度，默认 10
+  enableDynamicThickness?: boolean           // Whether to enable dynamic outline thickness, default true
+  minThickness?: number                      // Minimum thickness, default 1
+  maxThickness?: number                      // Maximum thickness, default 10
 }
 
 /**
- * 创建模型点击高亮工具（OutlinePass 版）- 优化版
- * 
- * ✨ 功能增强：
- * - 使用 AbortController 统一管理事件生命周期
- * - 支持防抖处理避免频繁触发
- * - 可自定义 Raycaster 参数
- * - 根据相机距离动态调整描边厚度
- * 
- * @param camera 相机
- * @param scene 场景
- * @param renderer 渲染器
- * @param outlinePass 已初始化的 OutlinePass
- * @param onClick 点击回调
- * @param options 可选配置
- * @returns dispose 函数，用于清理事件和资源
+ * Create Model Click Highlight Tool (OutlinePass Version) - Optimized
+ *
+ * Features:
+ * - Uses AbortController to unify event lifecycle management
+ * - Supports debounce to avoid frequent triggering
+ * - Customizable Raycaster parameters
+ * - Dynamically adjusts outline thickness based on camera distance
+ *
+ * @param camera Camera
+ * @param scene Scene
+ * @param renderer Renderer
+ * @param outlinePass Initialized OutlinePass
+ * @param onClick Click callback
+ * @param options Optional configuration
+ * @returns Dispose function, used to clean up events and resources
  */
 export function createModelClickHandler(
   camera: THREE.Camera,
@@ -42,7 +53,7 @@ export function createModelClickHandler(
   onClick: (object: THREE.Object3D | null, info?: { name?: string; position?: THREE.Vector3; uuid?: string }) => void,
   options: ClickHandlerOptions = {}
 ) {
-  // 配置项
+  // Configuration
   const {
     clickThreshold = 3,
     debounceDelay = 0,
@@ -55,7 +66,7 @@ export function createModelClickHandler(
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
 
-  // 应用 raycaster 自定义参数
+  // Apply Raycaster custom parameters
   if (raycasterParams.near !== undefined) raycaster.near = raycasterParams.near
   if (raycasterParams.far !== undefined) raycaster.far = raycasterParams.far
   if (raycasterParams.pointsPrecision !== undefined) {
@@ -71,11 +82,11 @@ export function createModelClickHandler(
   let selectedObject: THREE.Object3D | null = null;
   let debounceTimer: number | null = null;
 
-  // 使用 AbortController 统一管理事件
+  // Use AbortController to manage events uniformly
   const abortController = new AbortController();
   const signal = abortController.signal;
 
-  /** 获取对象及其子 Mesh 列表 */
+  /** Get object and its child Meshes */
   function getMeshes(obj: THREE.Object3D): THREE.Mesh[] {
     const meshes: THREE.Mesh[] = [];
     obj.traverse(child => {
@@ -86,13 +97,13 @@ export function createModelClickHandler(
     return meshes;
   }
 
-  /** 高亮对象：更新 OutlinePass.selectedObjects 并调整描边厚度 */
+  /** Highlight object: Update OutlinePass.selectedObjects and adjust outline thickness */
   function highlightObject(obj: THREE.Object3D) {
     const meshes = getMeshes(obj);
     outlinePass.selectedObjects = meshes;
 
     if (enableDynamicThickness) {
-      // 动态调整描边厚度，根据相机到模型距离
+      // Dynamically adjust outline thickness based on distance from camera to model
       const center = new THREE.Vector3();
       obj.getWorldPosition(center);
       const distance = camera.position.distanceTo(center);
@@ -101,24 +112,24 @@ export function createModelClickHandler(
     }
   }
 
-  /** 恢复对象高亮（清空 OutlinePass.selectedObjects） */
+  /** Restore object highlight (Clear OutlinePass.selectedObjects) */
   function restoreObject() {
     outlinePass.selectedObjects = [];
   }
 
-  /** 鼠标按下记录位置 */
+  /** Record mouse down position */
   function handleMouseDown(event: MouseEvent) {
     startX = event.clientX;
     startY = event.clientY;
   }
 
-  /** 鼠标抬起判定点击或拖动（带防抖） */
+  /** Mouse up determines click or drag (with debounce) */
   function handleMouseUp(event: MouseEvent) {
     const dx = Math.abs(event.clientX - startX);
     const dy = Math.abs(event.clientY - startY);
-    if (dx > clickThreshold || dy > clickThreshold) return; // 拖动不触发点击
+    if (dx > clickThreshold || dy > clickThreshold) return; // Drag does not trigger click
 
-    // 防抖处理
+    // Debounce processing
     if (debounceDelay > 0) {
       if (debounceTimer !== null) {
         clearTimeout(debounceTimer);
@@ -132,7 +143,7 @@ export function createModelClickHandler(
     }
   }
 
-  /** 实际的点击处理逻辑 */
+  /** Actual click processing logic */
   function processClick(event: MouseEvent) {
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -143,42 +154,41 @@ export function createModelClickHandler(
 
     if (intersects.length > 0) {
       let object = intersects[0].object;
-      // 点击不同模型，先清除之前高亮
+      // Click different model, clear previous highlight first
       if (selectedObject && selectedObject !== object) restoreObject();
 
       selectedObject = object;
-      // highlightObject(selectedObject); // 可选：是否自动高亮
+      // highlightObject(selectedObject); // Optional: whether to auto highlight
 
       onClick(selectedObject, {
-        name: selectedObject.name || '未命名模型',
+        name: selectedObject.name || 'Unnamed Model',
         position: selectedObject.getWorldPosition(new THREE.Vector3()),
         uuid: selectedObject.uuid
       });
     } else {
-      // 点击空白 → 清除高亮
+      // Click blank -> Clear highlight
       if (selectedObject) restoreObject();
       selectedObject = null;
       onClick(null);
     }
   }
 
-  // 使用 AbortController 的 signal 注册事件
+  // Register events using signal from AbortController
   renderer.domElement.addEventListener('mousedown', handleMouseDown, { signal });
   renderer.domElement.addEventListener('mouseup', handleMouseUp, { signal });
 
-  /** 销毁函数：解绑事件并清除高亮 */
+  /** Dispose function: Unbind events and clear highlight */
   return () => {
-    // 清理防抖定时器
+    // Clear debounce timer
     if (debounceTimer !== null) {
       clearTimeout(debounceTimer);
       debounceTimer = null;
     }
-    // 一次性解绑所有事件
+    // Unbind all events at once
     abortController.abort();
-    // 清除高亮
+    // Clear highlight
     restoreObject();
-    // 清空引用
+    // Clear reference
     selectedObject = null;
   };
 }
-

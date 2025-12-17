@@ -1,11 +1,21 @@
-// utils/LiquidFillerGroup.ts
+/**
+ * @file liquidFiller.ts
+ * @description
+ * Liquid filling effect for single or multiple models using local clipping planes.
+ *
+ * @best-practice
+ * - Use `fillTo` to animate liquid level.
+ * - Supports multiple independent liquid levels.
+ * - Call `dispose` to clean up resources and event listeners.
+ */
+
 import * as THREE from 'three'
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 
 export interface LiquidFillerOptions {
-  color?: number      // 液体颜色
-  opacity?: number    // 液体透明度
-  speed?: number      // 液位变化速度
+  color?: number      // Liquid color
+  opacity?: number    // Liquid opacity
+  speed?: number      // Filling speed
 }
 
 interface LiquidItem {
@@ -14,19 +24,19 @@ interface LiquidItem {
   clipPlane: THREE.Plane
   originalMaterials: Map<THREE.Mesh, THREE.Material | THREE.Material[]>
   options: Required<LiquidFillerOptions>
-  animationId: number | null  // ✨ 跟踪每个模型的动画 ID
+  animationId: number | null  // Track animation ID for each model
 }
 
 /**
- * LiquidFillerGroup - 优化版
- * 支持单模型或多模型液位动画、独立颜色控制
- * 
- * ✨ 优化内容：
- * - 使用 renderer.domElement 替代 window 事件
- * - 使用 AbortController 管理事件生命周期
- * - 添加错误处理和边界检查
- * - 优化动画管理，避免内存泄漏
- * - 完善资源释放逻辑
+ * LiquidFillerGroup - Optimized
+ * Supports single or multi-model liquid level animation with independent color control.
+ *
+ * Features:
+ * - Uses renderer.domElement instead of window events
+ * - Uses AbortController to manage event lifecycle
+ * - Adds error handling and boundary checks
+ * - Optimized animation management to prevent memory leaks
+ * - Comprehensive resource disposal logic
  */
 export class LiquidFillerGroup {
   private items: LiquidItem[] = []
@@ -36,16 +46,16 @@ export class LiquidFillerGroup {
   private raycaster: THREE.Raycaster = new THREE.Raycaster()
   private pointerDownPos: THREE.Vector2 = new THREE.Vector2()
   private clickThreshold: number = 10
-  private abortController: AbortController | null = null  // ✨ 事件管理器
+  private abortController: AbortController | null = null  // Event manager
 
   /**
-   * 构造函数
-   * @param models 单个或多个 THREE.Object3D
-   * @param scene 场景
-   * @param camera 相机
-   * @param renderer 渲染器
-   * @param defaultOptions 默认液体选项
-   * @param clickThreshold 点击阈值，单位像素
+   * Constructor
+   * @param models Single or multiple THREE.Object3D
+   * @param scene Scene
+   * @param camera Camera
+   * @param renderer Renderer
+   * @param defaultOptions Default liquid options
+   * @param clickThreshold Click threshold in pixels
    */
   constructor(
     models: THREE.Object3D | THREE.Object3D[],
@@ -60,7 +70,7 @@ export class LiquidFillerGroup {
     this.renderer = renderer
     this.clickThreshold = clickThreshold
 
-    // ✨ 创建 AbortController 用于事件管理
+    // Create AbortController for event management
     this.abortController = new AbortController()
 
     const modelArray = Array.isArray(models) ? models : [models]
@@ -73,7 +83,7 @@ export class LiquidFillerGroup {
           speed: defaultOptions?.speed ?? 0.05,
         }
 
-        // 保存原始材质
+        // Save original materials
         const originalMaterials = new Map<THREE.Mesh, THREE.Material | THREE.Material[]>()
         model.traverse(obj => {
           if ((obj as THREE.Mesh).isMesh) {
@@ -82,13 +92,13 @@ export class LiquidFillerGroup {
           }
         })
 
-        // ✨ 边界检查：确保有材质可以保存
+        // Boundary check: ensure there are materials to save
         if (originalMaterials.size === 0) {
-          console.warn('LiquidFillerGroup: 模型没有 Mesh 对象', model)
+          console.warn('LiquidFillerGroup: Model has no Mesh objects', model)
           return
         }
 
-        // 应用淡线框材质
+        // Apply faded wireframe material
         model.traverse(obj => {
           if ((obj as THREE.Mesh).isMesh) {
             const mesh = obj as THREE.Mesh
@@ -101,7 +111,7 @@ export class LiquidFillerGroup {
           }
         })
 
-        // 创建液体 Mesh
+        // Create liquid Mesh
         const geometries: THREE.BufferGeometry[] = []
         model.traverse(obj => {
           if ((obj as THREE.Mesh).isMesh) {
@@ -113,13 +123,13 @@ export class LiquidFillerGroup {
         })
 
         if (geometries.length === 0) {
-          console.warn('LiquidFillerGroup: 模型没有几何体', model)
+          console.warn('LiquidFillerGroup: Model has no geometries', model)
           return
         }
 
         const mergedGeometry = BufferGeometryUtils.mergeGeometries(geometries, false)
         if (!mergedGeometry) {
-          console.error('LiquidFillerGroup: 几何体合并失败', model)
+          console.error('LiquidFillerGroup: Failed to merge geometries', model)
           return
         }
 
@@ -132,7 +142,7 @@ export class LiquidFillerGroup {
         const liquidMesh = new THREE.Mesh(mergedGeometry, material)
         this.scene.add(liquidMesh)
 
-        // 设置 clippingPlane
+        // Set clippingPlane
         const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0)
         const mat = liquidMesh.material as THREE.Material & { clippingPlanes?: THREE.Plane[] }
         mat.clippingPlanes = [clipPlane]
@@ -144,32 +154,32 @@ export class LiquidFillerGroup {
           clipPlane,
           originalMaterials,
           options,
-          animationId: null  // ✨ 初始化动画 ID
+          animationId: null  // Initialize animation ID
         })
       } catch (error) {
-        console.error('LiquidFillerGroup: 初始化模型失败', model, error)
+        console.error('LiquidFillerGroup: Failed to initialize model', model, error)
       }
     })
 
-    // ✨ 使用 renderer.domElement 替代 window，使用 AbortController signal
+    // Use renderer.domElement instead of window, use AbortController signal
     const signal = this.abortController.signal
     this.renderer.domElement.addEventListener('pointerdown', this.handlePointerDown, { signal })
     this.renderer.domElement.addEventListener('pointerup', this.handlePointerUp, { signal })
   }
 
-  /** pointerdown 记录位置 */
+  /** pointerdown record position */
   private handlePointerDown = (event: PointerEvent) => {
     this.pointerDownPos.set(event.clientX, event.clientY)
   }
 
-  /** pointerup 判断点击空白，恢复原始材质 */
+  /** pointerup check click blank, restore original material */
   private handlePointerUp = (event: PointerEvent) => {
     const dx = event.clientX - this.pointerDownPos.x
     const dy = event.clientY - this.pointerDownPos.y
     const distance = Math.sqrt(dx * dx + dy * dy)
-    if (distance > this.clickThreshold) return // 拖拽不触发
+    if (distance > this.clickThreshold) return // Do not trigger on drag
 
-    // ✨ 使用 renderer.domElement 的实际尺寸
+    // Use renderer.domElement actual size
     const rect = this.renderer.domElement.getBoundingClientRect()
     const pointerNDC = new THREE.Vector2(
       ((event.clientX - rect.left) / rect.width) * 2 - 1,
@@ -178,7 +188,7 @@ export class LiquidFillerGroup {
 
     this.raycaster.setFromCamera(pointerNDC, this.camera)
 
-    // 点击空白 -> 所有模型恢复
+    // Click blank -> Restore all models
     const intersectsAny = this.items.some(item =>
       this.raycaster.intersectObject(item.model, true).length > 0
     )
@@ -188,14 +198,14 @@ export class LiquidFillerGroup {
   }
 
   /**
- * 设置液位
- * @param models 单个模型或模型数组
- * @param percent 液位百分比 0~1
- */
+   * Set liquid level
+   * @param models Single model or array of models
+   * @param percent Liquid level percentage 0~1
+   */
   public fillTo(models: THREE.Object3D | THREE.Object3D[], percent: number) {
-    // ✨ 边界检查
+    // Boundary check
     if (percent < 0 || percent > 1) {
-      console.warn('LiquidFillerGroup: percent 必须在 0~1 之间', percent)
+      console.warn('LiquidFillerGroup: percent must be between 0 and 1', percent)
       percent = Math.max(0, Math.min(1, percent))
     }
 
@@ -204,16 +214,16 @@ export class LiquidFillerGroup {
     modelArray.forEach(model => {
       const item = this.items.find(i => i.model === model)
       if (!item) {
-        console.warn('LiquidFillerGroup: 未找到模型', model)
+        console.warn('LiquidFillerGroup: Model not found', model)
         return
       }
 
       if (!item.liquidMesh) {
-        console.warn('LiquidFillerGroup: liquidMesh 已被释放', model)
+        console.warn('LiquidFillerGroup: liquidMesh already disposed', model)
         return
       }
 
-      // ✨ 取消之前的动画
+      // Cancel previous animation
       if (item.animationId !== null) {
         cancelAnimationFrame(item.animationId)
         item.animationId = null
@@ -242,16 +252,16 @@ export class LiquidFillerGroup {
         }
         animate()
       } catch (error) {
-        console.error('LiquidFillerGroup: fillTo 执行失败', model, error)
+        console.error('LiquidFillerGroup: fillTo execution failed', model, error)
       }
     })
   }
 
-  /** 设置多个模型液位，percentList 与 items 顺序对应 */
+  /** Set multiple model levels, percentList corresponds to items order */
   public fillToAll(percentList: number[]) {
     if (percentList.length !== this.items.length) {
       console.warn(
-        `LiquidFillerGroup: percentList 长度 (${percentList.length}) 与 items 长度 (${this.items.length}) 不匹配`
+        `LiquidFillerGroup: percentList length (${percentList.length}) does not match items length (${this.items.length})`
       )
     }
 
@@ -262,18 +272,18 @@ export class LiquidFillerGroup {
     })
   }
 
-  /** 恢复单个模型原始材质并移除液体 */
+  /** Restore single model original material and remove liquid */
   public restore(model: THREE.Object3D) {
     const item = this.items.find(i => i.model === model)
     if (!item) return
 
-    // ✨ 取消动画
+    // Cancel animation
     if (item.animationId !== null) {
       cancelAnimationFrame(item.animationId)
       item.animationId = null
     }
 
-    // 恢复原始材质
+    // Restore original material
     item.model.traverse(obj => {
       if ((obj as THREE.Mesh).isMesh) {
         const mesh = obj as THREE.Mesh
@@ -282,7 +292,7 @@ export class LiquidFillerGroup {
       }
     })
 
-    // 释放液体 Mesh
+    // Dispose liquid Mesh
     if (item.liquidMesh) {
       this.scene.remove(item.liquidMesh)
       item.liquidMesh.geometry.dispose()
@@ -295,24 +305,23 @@ export class LiquidFillerGroup {
     }
   }
 
-  /** 恢复所有模型 */
+  /** Restore all models */
   public restoreAll() {
     this.items.forEach(item => this.restore(item.model))
   }
 
-  /** 销毁方法，释放事件和资源 */
+  /** Dispose method, release events and resources */
   public dispose() {
-    // ✨ 先恢复所有模型
+    // Restore all models first
     this.restoreAll()
 
-    // ✨ 使用 AbortController 一次性解绑所有事件
+    // Unbind all events at once using AbortController
     if (this.abortController) {
       this.abortController.abort()
       this.abortController = null
     }
 
-    // ✨ 清空 items
+    // Clear items
     this.items.length = 0
   }
 }
-

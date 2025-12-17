@@ -1,3 +1,14 @@
+/**
+ * @file modelLoader.ts
+ * @description
+ * Utility to load 3D models (GLTF, FBX, OBJ, PLY, STL) from URLs.
+ *
+ * @best-practice
+ * - Use `loadModelByUrl` for a unified loading interface.
+ * - Supports Draco compression and KTX2 textures for GLTF.
+ * - Includes optimization options like geometry merging and texture downscaling.
+ */
+
 import * as THREE from 'three'
 
 type LoaderLike = {
@@ -7,7 +18,7 @@ type LoaderLike = {
     onError?: (err: any) => void) => void
 }
 
-/** 加载参数：现在有默认值 */
+/** Loading Options: Now has default values */
 export interface LoadOptions {
   manager?: THREE.LoadingManager
   // GLTF-specific
@@ -29,18 +40,18 @@ const DEFAULT_OPTIONS: Required<Omit<LoadOptions, 'manager' | 'dracoDecoderPath'
   skipSkinned: true,
 }
 
-/** 自动根据扩展名决定启用哪些选项（智能判断） */
+/** Automatically determine which options to enable based on extension (smart judgment) */
 function normalizeOptions(url: string, opts: LoadOptions): LoadOptions {
   const ext = (url.split('.').pop() || '').toLowerCase()
   const merged: LoadOptions = { ...DEFAULT_OPTIONS, ...opts }
 
   if (ext === 'gltf' || ext === 'glb') {
-    // gltf/glb 默认尝试 draco/ktx2，如果用户没填
+    // gltf/glb defaults to trying draco/ktx2 if user didn't specify
     if (merged.dracoDecoderPath === undefined) merged.dracoDecoderPath = '/draco/'
     if (merged.useKTX2 === undefined) merged.useKTX2 = true
     if (merged.ktx2TranscoderPath === undefined) merged.ktx2TranscoderPath = '/basis/'
   } else {
-    // fbx/obj/ply/stl 等不需要 draco/ktx2
+    // fbx/obj/ply/stl etc. do not need draco/ktx2
     merged.dracoDecoderPath = null
     merged.ktx2TranscoderPath = null
     merged.useKTX2 = false
@@ -102,8 +113,8 @@ export async function loadModelByUrl(
         if (ext === 'gltf' || ext === 'glb') {
           const sceneObj = res.scene || res;
 
-          // --- 关键：把 animations 暴露到 scene.userData（或 scene.animations）上 ---
-          // 这样调用方只要拿到 sceneObj，就能通过 sceneObj.userData.animations 读取到 clips
+          // --- Critical: Expose animations to scene.userData (or scene.animations) ---
+          // So the caller can access clips simply by getting sceneObj.userData.animations
           (sceneObj as any).userData = (sceneObj as any)?.userData || {};
           (sceneObj as any).userData.animations = res.animations ?? [];
           resolve(sceneObj as THREE.Object3D)
@@ -117,12 +128,12 @@ export async function loadModelByUrl(
     )
   })
 
-  // 优化
+  // Optimize
   object.traverse((child) => {
     const mesh = child as THREE.Mesh
     if (mesh.isMesh && mesh.geometry && !(mesh.geometry as any).isBufferGeometry) {
       try {
-        mesh.geometry = new THREE.BufferGeometry().fromGeometry?.(mesh.geometry as any) ?? mesh.geometry
+        mesh.geometry = (new THREE.BufferGeometry() as any).fromGeometry?.(mesh.geometry as any) ?? mesh.geometry
       } catch { }
     }
   })
@@ -148,7 +159,7 @@ export async function loadModelByUrl(
   return object
 }
 
-/** 运行时下采样网格中的贴图到 maxSize（canvas drawImage）以节省 GPU 内存 */
+/** Runtime downscale textures in mesh to maxSize (canvas drawImage) to save GPU memory */
 function downscaleTexturesInObject(obj: THREE.Object3D, maxSize: number) {
   obj.traverse((ch) => {
     if (!(ch as any).isMesh) return
@@ -186,10 +197,10 @@ function downscaleTexturesInObject(obj: THREE.Object3D, maxSize: number) {
 }
 
 /**
- * 尝试合并 object 中的几何体（只合并：非透明、非 SkinnedMesh、attribute 集合兼容的 BufferGeometry）
- * - 合并前会把每个 mesh 的几何体应用 world matrix（so merged geometry in world space）
- * - 合并会按材质 UUID 分组（不同材质不能合并）
- * - 合并函数会兼容 BufferGeometryUtils 的常见导出名
+ * Try to merge geometries in object (Only merge: non-transparent, non-SkinnedMesh, attribute compatible BufferGeometry)
+ * - Before merging, apply world matrix to each mesh's geometry (so merged geometry is in world space)
+ * - Merging will group by material UUID (different materials cannot be merged)
+ * - Merge function is compatible with common export names of BufferGeometryUtils
  */
 async function tryMergeGeometries(root: THREE.Object3D, opts: { skipSkinned: boolean }) {
   // collect meshes by material uuid
@@ -207,7 +218,7 @@ async function tryMergeGeometries(root: THREE.Object3D, opts: { skipSkinned: boo
     geom.applyMatrix4(mesh.matrixWorld)
     // ensure attributes compatible? we'll rely on merge function to return null if incompatible
     const key = (mat && mat.uuid) || 'default'
-    const bucket = groups.get(key) ?? { material: mat ?? new THREE.MeshStandardMaterial(), geoms: [] }
+    const bucket = groups.get(key) ?? { material: mat ?? new THREE.MeshStandardMaterial(), geoms: [] as THREE.BufferGeometry[] }
     bucket.geoms.push(geom)
     groups.set(key, bucket)
     // mark for removal (we'll remove meshes after)
@@ -261,10 +272,10 @@ async function tryMergeGeometries(root: THREE.Object3D, opts: { skipSkinned: boo
 }
 
 /* ---------------------
-   释放工具
+   Dispose Utils
    --------------------- */
 
-/** 彻底释放对象：几何体，材质和其贴图（危险：共享资源会被释放） */
+/** Completely dispose object: geometry, material and its textures (Danger: shared resources will be disposed) */
 export function disposeObject(obj: THREE.Object3D | null) {
   if (!obj) return
   obj.traverse((ch) => {
@@ -282,7 +293,7 @@ export function disposeObject(obj: THREE.Object3D | null) {
   })
 }
 
-/** 释放材质及其贴图 */
+/** Dispose material and its textures */
 export function disposeMaterial(mat: any) {
   if (!mat) return
   const texNames = ['map', 'alphaMap', 'aoMap', 'emissiveMap', 'envMap', 'metalnessMap', 'roughnessMap', 'normalMap', 'bumpMap', 'displacementMap', 'lightMap']
@@ -292,4 +303,13 @@ export function disposeMaterial(mat: any) {
     }
   })
   try { if (typeof mat.dispose === 'function') mat.dispose() } catch { }
+}
+
+// Helper to convert to simple material (stub)
+function toSimpleMaterial(mat: any) {
+  // Basic implementation, preserve color/map
+  const m = new THREE.MeshBasicMaterial()
+  if (mat.color) m.color.copy(mat.color)
+  if (mat.map) m.map = mat.map
+  return m
 }

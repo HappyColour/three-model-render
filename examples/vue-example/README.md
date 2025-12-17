@@ -1,89 +1,89 @@
 # Three Model Render - Vue Example
 
-这是一个**完整可运行**的示例项目，展示如何使用 `@chocozhang/three-model-render` 包的所有14个工具。
+This is a **complete runnable** example project demonstrating how to use all 14 tools from the `@chocozhang/three-model-render` package.
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 1. 构建主包
+### 1. Build the main package
 
-首先，确保主包已构建：
+First, ensure the main package is built:
 
 ```bash
-# 在项目根目录
+# In the project root directory
 pnpm install
 pnpm run build
 ```
 
-### 2. 安装示例项目依赖
+### 2. Install example project dependencies
 
 ```bash
-# 进入示例目录
+# Enter the example directory
 cd examples/vue-example
 pnpm install
 ```
 
-### 3. 运行示例
+### 3. Run the example
 
 ```bash
 pnpm run dev
 ```
 
-打开浏览器访问 `http://localhost:5173`
+Open your browser and visit `http://localhost:5173`
 
 ---
 
-## ✨ 展示的所有工具 (14/14)
+## ✨ Demonstrated Tools (14/14)
 
-### Setup (1个) ✅
-- **autoSetupCameraAndLight** - 自动设置最佳灯光和相机位置
+### Setup (1) ✅
+- **autoSetupCameraAndLight** - Automatically set optimal lighting and camera position
 
-### Core (3个) ✅
-- **addChildModelLabels** - 为子网格添加实时跟随标签
-- **enableHoverBreath** - 鼠标悬停呼吸高亮效果
-- **initPostProcessing** - 初始化后期处理（OutlinePass）
+### Core (3) ✅
+- **addChildModelLabels** - Add real-time following labels to sub-meshes
+- **enableHoverBreath** - Breathing highlight effect on hover
+- **initPostProcessing** - Initialize post-processing (OutlinePass)
 
-### Interaction (3个) ✅
-- **createModelClickHandler** - 模型点击事件处理
-- **ArrowGuide** - 箭头引导到特定对象
-- **LiquidFillerGroup** - 液位填充动画
+### Interaction (3) ✅
+- **createModelClickHandler** - Model click event handler
+- **ArrowGuide** - Arrow guide to specific objects
+- **LiquidFillerGroup** - Liquid level filling animation
 
-### Camera (2个) ✅
-- **followModels** - 相机平滑跟随模型
-- **setView** - 快速切换预设视角（Front/Back/Left/Right/Top/ISO）
+### Camera (2) ✅
+- **followModels** - Camera smoothly follows models
+- **setView** - Quickly switch predefined views (Front/Back/Left/Right/Top/ISO)
 
-### Loader (3个) ✅
-- **loadModelByUrl** - 自动检测格式并加载模型
-- **SkyboxLoader** - 加载天空盒
-- **BlueSky** - 内置蓝天环境
+### Loader (3) ✅
+- **loadModelByUrl** - Automatically detect format and load models
+- **SkyboxLoader** - Load skyboxes
+- **BlueSky** - Built-in blue sky environment
 
-### UI (1个) ✅
-- **createModelsLabel** - 3D标签
+### UI (1) ✅
+- **createModelsLabel** - 3D Labels
 
-### Effect (1个) ✅
-- **GroupExploder** - 爆炸视图（Ring/Spiral/Grid/Radial）
+### Effect (1) ✅
+- **GroupExploder** - Exploded view (Ring/Spiral/Grid/Radial)
 
 ---
 
-## 📂 项目结构
+## 📂 Project Structure
 
 ```
 vue-example/
-├── package.json          # 依赖配置
-├── vite.config.js        # Vite 配置
-├── index.html            # HTML 入口
+├── package.json          # Dependency configuration
+├── vite.config.js        # Vite configuration
+├── index.html            # HTML Entry
 ├── src/
-│   ├── main.js           # Vue 应用入口
-│   ├── App.vue           # 根组件
+│   ├── main.js           # Vue Application Entry
+│   ├── App.vue           # Root Component
 │   └── components/
-│       └── ModelViewer.vue  # 核心3D查看器（所有工具使用示例）
+│       └── ModelViewer.vue  # Core 3D Viewer (Example of using all tools)
 └── README.md
 ```
 
 ---
 
-## 💻 代码亮点
+## 💻 Code Highlights
 
-### 1. 正确的导入方式
+### 1. Correct Import Method
 
 ```javascript
 import { loadModelByUrl, disposeObject } from '@chocozhang/three-model-render'
@@ -99,13 +99,13 @@ import { addChildModelLabels, enableHoverBreath, initPostProcessing } from '@cho
 
 ```
 
-### 2. 模型加载（使用 loadModelByUrl）
+### 2. Model Loading (Using loadModelByUrl)
 
 ```javascript
 const loadModel = async (file) => {
   const url = URL.createObjectURL(file)
   
-  // ✅ 自动检测格式并加载
+  // ✅ Detect format and load automatically
   const model = await loadModelByUrl(url, {
     mergeGeometries: false,
     maxTextureSize: 2048
@@ -115,10 +115,10 @@ const loadModel = async (file) => {
 }
 ```
 
-### 3. 功能启用
+### 3. Enabling Features
 
 ```javascript
-// ✅ 自动灯光
+// ✅ Auto Lights
 const toggleAutoLights = () => {
   if (enabled) {
     managers.value.autoLights = autoSetupCameraAndLight(
@@ -129,33 +129,33 @@ const toggleAutoLights = () => {
   }
 }
 
-// ✅ 标签
+// ✅ Labels
 const toggleChildLabels = () => {
   managers.value.childLabels = addChildModelLabels(
     camera, renderer, currentModel, labelMap, { enableCache: true }
   )
 }
 
-// ✅ 相机视角
+// ✅ Camera View
 await setView(camera, controls, currentModel, 'front', { duration: 800 })
 
-// ✅ 爆炸视图
+// ✅ Exploded View
 const exploder = new GroupExploder(scene, camera, controls)
 exploder.explode({ mode: 'spiral', distance: 3 })
 ```
 
-### 4. 资源清理
+### 4. Resource Cleanup
 
 ```javascript
-// ✅ 使用 disposeObject
+// ✅ Using disposeObject
 const disposeModel = () => {
-  // 清理所有管理器
+  // Clean up all managers
   Object.values(managers.value).forEach(mgr => {
     if (mgr?.dispose) mgr.dispose()
     else if (typeof mgr === 'function') mgr()
   })
   
-  // 清理模型
+  // Dispose model
   if (currentModel) {
     disposeObject(currentModel)
     scene.remove(currentModel)
@@ -165,33 +165,33 @@ const disposeModel = () => {
 
 ---
 
-## 🎮 使用流程
+## 🎮 Usage Flow
 
-1. **上传模型** - 拖拽或点击上传 GLTF/GLB/FBX/OBJ 等文件
-2. **开启功能** - 使用右侧控制面板的开关
-3. **测试交互** - 点击模型、悬停效果、视角切换等
-4. **查看效果** - 爆炸视图、液位填充、箭头引导等
+1. **Upload Model** - Drag or click to upload GLTF/GLB/FBX/OBJ files
+2. **Enable Features** - Use the switches on the right control panel
+3. **Test Interaction** - Click models, hover effects, switch views, etc.
+4. **View Effects** - Exploded view, liquid filling, arrow guide, etc.
 
 ---
 
-## 🔧 自定义配置
+## 🔧 Custom Configuration
 
-### 修改 Vite 配置使用 npm 包
+### Modify Vite Config to use npm package
 
-如果你想使用已发布的 npm 包而不是本地构建：
+If you want to use the published npm package instead of the local build:
 
 ```javascript
 // vite.config.js
 export default defineConfig({
   plugins: [vue()],
-  // 移除 alias 配置
+  // Remove alias configuration
   optimizeDeps: {
     include: ['three', '@chocozhang/three-model-render']
   }
 })
 ```
 
-然后安装包：
+Then install the package:
 
 ```bash
 pnpm add @chocozhang/three-model-render
@@ -199,38 +199,38 @@ pnpm add @chocozhang/three-model-render
 
 ---
 
-## 📚 学习资源
+## 📚 Learning Resources
 
-- **查看源码** - `src/components/ModelViewer.vue` 包含所有工具的使用示例
-- **API 文档** - `../../README.md`
+- **View Source Code** - `src/components/ModelViewer.vue` contains examples of all tools
+- **API Documentation** - `../../README.md`
 
 ---
 
-## ❓ 常见问题
-### Q: 如何调试？
+## ❓ FAQ
+### Q: How to debug?
 **A**: 
-- 打开浏览器控制台查看日志
-- 检查 Three.js 场景对象
-- 使用 Vue DevTools
+- Open browser console to check logs
+- Check Three.js scene objects
+- Use Vue DevTools
 
-### Q: 性能优化建议？
+### Q: Performance optimization suggestions?
 **A**:
-- 降低后期处理分辨率 (`resolutionScale: 0.5`)
-- 减少标签更新频率 (`updateInterval: 66`)
-- 使用模型几何体合并
+- Reduce post-processing resolution (`resolutionScale: 0.5`)
+- Reduce label update frequency (`updateInterval: 66`)
+- Use model geometry merging
 
 ---
 
-## 🎯 从这个示例中学到什么？
+## 🎯 What can you learn from this example?
 
-1. ✅ 如何安装和导入包
-2. ✅ 如何使用每个工具的 API
-3. ✅ 如何管理多个功能的状态
-4. ✅ 如何正确清理资源
-5. ✅ 完整的 Vue3 集成最佳实践
+1. ✅ How to install and import the package
+2. ✅ How to use the API of each tool
+3. ✅ How to manage the state of multiple features
+4. ✅ How to properly clean up resources
+5. ✅ Complete Vue3 integration best practices
 
 ---
 
-**开始探索！** 🚀
+**Start Exploring!** 🚀
 
-有问题欢迎查看源码或提 Issue。
+Feel free to check the source code or submit an Issue if you have any questions.

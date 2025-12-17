@@ -1,18 +1,28 @@
-// src/utils/ArrowGuide.ts
+/**
+ * @file arrowGuide.ts
+ * @description
+ * Arrow guide effect tool, supports highlighting models and fading other objects.
+ *
+ * @best-practice
+ * - Use `highlight` to focus on specific models.
+ * - Automatically manages materials and memory using WeakMap.
+ * - Call `dispose` when component unmounts.
+ */
+
 import * as THREE from 'three'
 
 export type FilterFn = (obj: THREE.Object3D) => boolean
 
 /**
- * ArrowGuide - 优化版
- * 箭头引导效果工具，支持高亮模型并淡化其他对象
- * 
- * ✨ 优化内容：
- * - 使用 WeakMap 自动回收材质，避免内存泄漏
- * - 使用 AbortController 管理事件生命周期
- * - 添加材质复用机制，减少重复创建
- * - 改进 dispose 逻辑，确保完全释放资源
- * - 添加错误处理和边界检查
+ * ArrowGuide - Optimized Version
+ * Arrow guide effect tool, supports highlighting models and fading other objects.
+ *
+ * Features:
+ * - Uses WeakMap for automatic material recycling, preventing memory leaks
+ * - Uses AbortController to manage event lifecycle
+ * - Adds material reuse mechanism to reuse materials
+ * - Improved dispose logic ensuring complete resource release
+ * - Adds error handling and boundary checks
  */
 export class ArrowGuide {
   private lxMesh: THREE.Mesh | null = null
@@ -23,17 +33,17 @@ export class ArrowGuide {
   private raycaster = new THREE.Raycaster()
   private mouse = new THREE.Vector2()
 
-  // ✨ 使用 WeakMap 自动回收材质（GC 友好）
+  // Use WeakMap for automatic material recycling (GC friendly)
   private originalMaterials = new WeakMap<THREE.Mesh, THREE.Material | THREE.Material[]>()
   private fadedMaterials = new WeakMap<THREE.Mesh, THREE.Material | THREE.Material[]>()
 
-  // ✨ AbortController 用于事件管理
+  // AbortController for event management
   private abortController: AbortController | null = null
 
-  // 可选：忽略射线（地面等）
+  // Optional: Ignore raycast names (e.g. ground)
   private ignoreRaycastNames: Set<string>
 
-  // 配置：非高亮透明度和亮度
+  // Config: Non-highlight opacity and brightness
   private fadeOpacity = 0.5
   private fadeBrightness = 0.1
 
@@ -57,32 +67,32 @@ export class ArrowGuide {
     this.initEvents()
   }
 
-  // —— 工具：缓存原材质（仅首次）
+  // Tool: Cache original material (first time only)
   private cacheOriginalMaterial(mesh: THREE.Mesh) {
     if (!this.originalMaterials.has(mesh)) {
       this.originalMaterials.set(mesh, mesh.material)
     }
   }
 
-  // —— 工具：为某个材质克隆一个"半透明版本"，保留所有贴图与参数
+  // Tool: Clone a "translucent version" for a material, preserving all maps and parameters
   private makeFadedClone(mat: THREE.Material): THREE.Material {
     const clone = mat.clone()
     const c: any = clone
-    // 只改透明相关参数，不改 map / normalMap / roughnessMap 等细节
+    // Only modify transparency parameters, do not modify detail maps like map / normalMap / roughnessMap
     c.transparent = true
     if (typeof c.opacity === 'number') c.opacity = this.fadeOpacity
 
     if (c.color && c.color.isColor) {
-      c.color.multiplyScalar(this.fadeBrightness) // 颜色整体变暗
+      c.color.multiplyScalar(this.fadeBrightness) // Darken color overall
     }
-    // 为了让箭头在透明建筑后也能顺畅显示，常用策略：不写深度，仅测试深度
+    // Common strategy for fluid display behind transparent objects: do not write depth, only test depth
     clone.depthWrite = false
     clone.depthTest = true
     clone.needsUpdate = true
     return clone
   }
 
-  // —— 工具：为 mesh.material（可能是数组）批量克隆"半透明版本"
+  // Tool: Batch clone "translucent version" for mesh.material (could be array)
   private createFadedMaterialFrom(mesh: THREE.Mesh): THREE.Material | THREE.Material[] {
     const orig = mesh.material
     if (Array.isArray(orig)) {
@@ -92,7 +102,7 @@ export class ArrowGuide {
   }
 
   /**
-   * 设置箭头 Mesh
+   * Set Arrow Mesh
    */
   setArrowMesh(mesh: THREE.Mesh) {
     this.lxMesh = mesh
@@ -108,16 +118,16 @@ export class ArrowGuide {
       }
       mesh.visible = false
     } catch (error) {
-      console.error('ArrowGuide: 设置箭头材质失败', error)
+      console.error('ArrowGuide: Failed to set arrow material', error)
     }
   }
 
   /**
-   * 高亮指定模型
+   * Highlight specified models
    */
   highlight(models: THREE.Object3D[]) {
     if (!models || models.length === 0) {
-      console.warn('ArrowGuide: 高亮模型列表为空')
+      console.warn('ArrowGuide: Highlight model list is empty')
       return
     }
 
@@ -127,9 +137,9 @@ export class ArrowGuide {
     this.applyHighlight()
   }
 
-  // ✅ 应用高亮效果：非高亮模型保留细节 → 使用"克隆后的半透明材质"
+  // Apply highlight effect: Non-highlighted models preserve details -> use "cloned translucent material"
   private applyHighlight() {
-    // ✨ 使用 Set 提升查找性能
+    // Use Set to improve lookup performance
     const keepMeshes = new Set<THREE.Mesh>()
     this.modelBrightArr.forEach(obj => {
       obj.traverse(child => {
@@ -142,20 +152,20 @@ export class ArrowGuide {
         if ((obj as THREE.Mesh).isMesh) {
           const mesh = obj as THREE.Mesh
 
-          // 缓存原材质（用于恢复）
+          // Cache original material (for restoration)
           this.cacheOriginalMaterial(mesh)
 
           if (!keepMeshes.has(mesh)) {
-            // 非高亮：如果还没给它生成过"半透明克隆材质"，就创建一次
+            // Non-highlighted: if no "translucent clone material" generated yet, create one
             if (!this.fadedMaterials.has(mesh)) {
               const faded = this.createFadedMaterialFrom(mesh)
               this.fadedMaterials.set(mesh, faded)
             }
-            // 替换为克隆材质（保留所有贴图/法线等细节）
+            // Replace with clone material (preserve all maps/normals details)
             const fadedMat = this.fadedMaterials.get(mesh)
             if (fadedMat) mesh.material = fadedMat
           } else {
-            // 高亮对象：确保回到原材质（避免上一次高亮后遗留）
+            // Highlighted object: ensure return to original material (avoid leftover from previous highlight)
             const orig = this.originalMaterials.get(mesh)
             if (orig && mesh.material !== orig) {
               mesh.material = orig
@@ -165,17 +175,17 @@ export class ArrowGuide {
         }
       })
     } catch (error) {
-      console.error('ArrowGuide: 应用高亮失败', error)
+      console.error('ArrowGuide: Failed to apply highlight', error)
     }
   }
 
-  // ✅ 恢复为原材质 & 释放克隆材质
+  // Restore to original material & dispose clone material
   restore() {
     this.flowActive = false
     if (this.lxMesh) this.lxMesh.visible = false
 
     try {
-      // ✨ 收集所有需要释放的材质
+      // Collect all materials to dispose
       const materialsToDispose: THREE.Material[] = []
 
       this.scene.traverse(obj => {
@@ -187,7 +197,7 @@ export class ArrowGuide {
               ; (mesh.material as any).needsUpdate = true
           }
 
-          // ✨ 收集待释放的淡化材质
+          // Collect faded materials to dispose
           const faded = this.fadedMaterials.get(mesh)
           if (faded) {
             if (Array.isArray(faded)) {
@@ -199,24 +209,24 @@ export class ArrowGuide {
         }
       })
 
-      // ✨ 批量释放材质（不触碰贴图资源）
+      // Batch dispose materials (do not touch texture resources)
       materialsToDispose.forEach(mat => {
         try {
           mat.dispose()
         } catch (error) {
-          console.error('ArrowGuide: 释放材质失败', error)
+          console.error('ArrowGuide: Failed to dispose material', error)
         }
       })
 
-      // ✨ 创建新的 WeakMap（相当于清空）
+      // Create new WeakMap (equivalent to clearing)
       this.fadedMaterials = new WeakMap()
     } catch (error) {
-      console.error('ArrowGuide: 恢复材质失败', error)
+      console.error('ArrowGuide: Failed to restore material', error)
     }
   }
 
   /**
-   * 动画更新（每帧调用）
+   * Animation update (called every frame)
    */
   animate() {
     if (!this.flowActive || !this.lxMesh) return
@@ -229,18 +239,18 @@ export class ArrowGuide {
         map.needsUpdate = true
       }
     } catch (error) {
-      console.error('ArrowGuide: 动画更新失败', error)
+      console.error('ArrowGuide: Animation update failed', error)
     }
   }
 
   /**
-   * 初始化事件监听器
+   * Initialize event listeners
    */
   private initEvents() {
     const dom = this.renderer.domElement
     const signal = this.abortController!.signal
 
-    // ✨ 使用 AbortController signal 自动管理事件生命周期
+    // Use AbortController signal to automatically manage event lifecycle
     dom.addEventListener('pointerdown', (e: PointerEvent) => {
       this.pointerDownPos.set(e.clientX, e.clientY)
     }, { signal })
@@ -248,7 +258,7 @@ export class ArrowGuide {
     dom.addEventListener('pointerup', (e: PointerEvent) => {
       const dx = Math.abs(e.clientX - this.pointerDownPos.x)
       const dy = Math.abs(e.clientY - this.pointerDownPos.y)
-      if (dx > this.clickThreshold || dy > this.clickThreshold) return // 拖拽
+      if (dx > this.clickThreshold || dy > this.clickThreshold) return // Dragging
 
       const rect = dom.getBoundingClientRect()
       this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
@@ -263,24 +273,24 @@ export class ArrowGuide {
         return true
       })
 
-      if (filtered.length === 0) this.restore() // 点击空白恢复
+      if (filtered.length === 0) this.restore() // Click blank space to restore
     }, { signal })
   }
 
   /**
-   * 释放所有资源
+   * Dispose all resources
    */
   dispose() {
-    // ✨ 先恢复材质
+    // Restore materials first
     this.restore()
 
-    // ✨ 使用 AbortController 一次性解绑所有事件
+    // Unbind all events at once using AbortController
     if (this.abortController) {
       this.abortController.abort()
       this.abortController = null
     }
 
-    // ✨ 清空引用
+    // Clear references
     this.modelBrightArr = []
     this.lxMesh = null
     this.fadedMaterials = new WeakMap()

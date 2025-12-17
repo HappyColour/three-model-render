@@ -1,47 +1,57 @@
+/**
+ * @file autoSetup.ts
+ * @description
+ * Automatically sets up the camera and basic lighting scene based on the model's bounding box.
+ *
+ * @best-practice
+ * - Call `autoSetupCameraAndLight` after loading a model to get a quick "good looking" scene.
+ * - Returns a handle to dispose lights or update intensity later.
+ */
+
 import * as THREE from 'three'
 
 export interface AutoSetupOptions {
-  /** 相机在包围球基础上的额外填充倍数（>1 扩大可视范围） */
+  /** Extra padding multiplier based on bounding sphere (>1 expands view range) */
   padding?: number
-  /** 相机仰角偏移（弧度），默认小俯视（0.2 rad ≈ 11°） */
+  /** Camera elevation offset (radians), default slight top-down (0.2 rad ≈ 11°) */
   elevation?: number
-  /** 是否启用阴影（shadow） - 性能开销大，默认 false */
+  /** Whether to enable shadows - high performance cost, default false */
   enableShadows?: boolean
-  /** 阴影贴图尺寸，越高越清晰越耗性能，默认 1024 */
+  /** Shadow map size, higher is clearer but more expensive, default 1024 */
   shadowMapSize?: number
-  /** DirectionalLights 的数量（均匀分布在四面） */
+  /** Number of DirectionalLights (evenly distributed around) */
   directionalCount?: number
-  /** 是否自动把 mesh.castShadow / mesh.receiveShadow 设置为 true（默认 true） */
+  /** Whether to automatically set mesh.castShadow / mesh.receiveShadow to true (default true) */
   setMeshShadowProps?: boolean
-  /** 如果传入 renderer，则工具会自动启用 renderer.shadowMap（如果 enableShadows 为 true） */
+  /** If renderer is passed, the tool will automatically enable renderer.shadowMap (if enableShadows is true) */
   renderer?: THREE.WebGLRenderer | null
 }
 
 /**
- * 返回值句柄，包含 created lights group、computed center/radius、以及 dispose 方法
+ * Return handle, containing created lights group, computed center/radius, and dispose method
  */
 export type AutoSetupHandle = {
   lightsGroup: THREE.Group
   center: THREE.Vector3
   radius: number
   dispose: () => void
-  updateLightIntensity: (factor: number) => void  // ✨ 新增
+  updateLightIntensity: (factor: number) => void
 }
 
 /**
- * 自动设置相机与基础灯光 - 优化版
- * 
- * ✨ 优化内容：
- * - 添加灯光强度调整方法
- * - 完善错误处理
- * - 优化dispose逻辑
+ * Automatically setup camera and basic lighting - Optimized
  *
- * - camera: THREE.PerspectiveCamera（会被移动并指向模型中心）
- * - scene: THREE.Scene（会把新创建的 light group 加入 scene）
- * - model: THREE.Object3D 已加载的模型（任意 transform/坐标）
- * - options: 可选配置（见 AutoSetupOptions）
+ * Features:
+ * - Adds light intensity adjustment method
+ * - Improved error handling
+ * - Optimized dispose logic
  *
- * 返回 AutoSetupHandle，调用方在组件卸载/切换时请调用 handle.dispose()
+ * - camera: THREE.PerspectiveCamera (will be moved and pointed at model center)
+ * - scene: THREE.Scene (newly created light group will be added to the scene)
+ * - model: THREE.Object3D loaded model (arbitrary transform/coordinates)
+ * - options: Optional configuration (see AutoSetupOptions)
+ *
+ * Returns AutoSetupHandle, caller should call handle.dispose() when component unmounts/switches
  */
 export function autoSetupCameraAndLight(
   camera: THREE.PerspectiveCamera,
@@ -49,7 +59,7 @@ export function autoSetupCameraAndLight(
   model: THREE.Object3D,
   options: AutoSetupOptions = {}
 ): AutoSetupHandle {
-  // ✨ 边界检查
+  // Boundary check
   if (!camera || !scene || !model) {
     throw new Error('autoSetupCameraAndLight: camera, scene, model are required')
   }
@@ -65,10 +75,10 @@ export function autoSetupCameraAndLight(
   }
 
   try {
-    // --- 1) 计算包围数据
+    // --- 1) Calculate bounding data
     const box = new THREE.Box3().setFromObject(model)
 
-    // ✨ 检查包围盒有效性
+    // Check bounding box validity
     if (!isFinite(box.min.x)) {
       throw new Error('autoSetupCameraAndLight: Invalid bounding box')
     }
@@ -78,7 +88,7 @@ export function autoSetupCameraAndLight(
     const center = sphere.center.clone()
     const radius = Math.max(0.001, sphere.radius)
 
-    // --- 2) 计算相机位置
+    // --- 2) Calculate camera position
     const fov = (camera.fov * Math.PI) / 180
     const halfFov = fov / 2
     const sinHalfFov = Math.max(Math.sin(halfFov), 0.001)
@@ -98,19 +108,19 @@ export function autoSetupCameraAndLight(
     camera.far = Math.max(1000, radius * 50)
     camera.updateProjectionMatrix()
 
-    // --- 3) 启用阴影
+    // --- 3) Enable Shadows
     if (opts.renderer && opts.enableShadows) {
       opts.renderer.shadowMap.enabled = true
       opts.renderer.shadowMap.type = THREE.PCFSoftShadowMap
     }
 
-    // --- 4) 创建灯光组
+    // --- 4) Create Lights Group
     const lightsGroup = new THREE.Group()
     lightsGroup.name = 'autoSetupLightsGroup'
     lightsGroup.position.copy(center)
     scene.add(lightsGroup)
 
-    // 4.1 基础光
+    // 4.1 Basic Light
     const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6)
     hemi.name = 'auto_hemi'
     hemi.position.set(0, radius * 2.0, 0)
@@ -120,7 +130,7 @@ export function autoSetupCameraAndLight(
     ambient.name = 'auto_ambient'
     lightsGroup.add(ambient)
 
-    // 4.2 方向光
+    // 4.2 Directional Lights
     const dirCount = Math.max(1, Math.floor(opts.directionalCount))
     const directionalLights: THREE.DirectionalLight[] = []
     const dirs: THREE.Vector3[] = []
@@ -161,7 +171,7 @@ export function autoSetupCameraAndLight(
       directionalLights.push(light)
     }
 
-    // 4.3 点光补光
+    // 4.3 Point Light Fill
     const fill1 = new THREE.PointLight(0xffffff, 0.5, radius * 4)
     fill1.position.copy(center).add(new THREE.Vector3(radius * 0.5, 0.2 * radius, 0))
     fill1.name = 'auto_fill1'
@@ -172,7 +182,7 @@ export function autoSetupCameraAndLight(
     fill2.name = 'auto_fill2'
     lightsGroup.add(fill2)
 
-    // --- 5) 设置 Mesh 阴影属性
+    // --- 5) Set Mesh Shadow Props
     if (opts.setMeshShadowProps) {
       model.traverse((ch) => {
         if ((ch as any).isMesh) {
@@ -184,12 +194,12 @@ export function autoSetupCameraAndLight(
       })
     }
 
-    // --- 6) 返回 handle ---
+    // --- 6) Return handle ---
     const handle: AutoSetupHandle = {
       lightsGroup,
       center,
       radius,
-      // ✨ 新增灯光强度调整
+      // Update light intensity
       updateLightIntensity(factor: number) {
         lightsGroup.traverse((node) => {
           if ((node as any).isLight) {
@@ -201,10 +211,10 @@ export function autoSetupCameraAndLight(
       },
       dispose: () => {
         try {
-          // 移除灯光组
+          // Remove lights group
           if (lightsGroup.parent) lightsGroup.parent.remove(lightsGroup)
 
-          // 清理阴影资源
+          // Dispose shadow resources
           lightsGroup.traverse((node) => {
             if ((node as any).isLight) {
               const l = node as THREE.Light & { shadow?: any }

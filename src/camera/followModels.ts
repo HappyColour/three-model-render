@@ -1,45 +1,56 @@
-// src/utils/followModels.ts - 优化版
+/**
+ * @file followModels.ts
+ * @description
+ * Camera utility to automatically follow and focus on 3D models.
+ * It smoothly moves the camera to an optimal viewing position relative to the target object(s).
+ *
+ * @best-practice
+ * - Use `followModels` to focus on a newly selected object.
+ * - Call `cancelFollow` before starting a new manual camera interaction if needed.
+ * - Adjust `padding` to control how tight the camera framing is.
+ */
+
 import * as THREE from 'three'
 
-// ✨ 使用 WeakMap 跟踪动画，支持取消
+// Use WeakMap to track animations, allowing for cancellation
 const _animationMap = new WeakMap<THREE.Camera, number>()
 
 export interface FollowOptions {
-  duration?: number      // 动画时长 ms，默认 700
-  padding?: number       // 包围球倍数，默认 1.0
-  minDistance?: number   // 最小距离（可选）
-  maxDistance?: number   // 最大距离（可选）
-  controls?: { target?: THREE.Vector3; update?: () => void } | null // 可选 OrbitControls-like
-  azimuth?: number       // 水平角度（弧度），默认 Math.PI/4 (≈45°)
-  elevation?: number     // 仰角（弧度），默认 Math.PI/4 (≈45°)
-  easing?: 'linear' | 'easeInOut' | 'easeOut' | 'easeIn'  // ✨ 缓动函数类型
-  onProgress?: (progress: number) => void  // ✨ 进度回调
+  duration?: number      // Animation duration in ms, default is 700
+  padding?: number       // Bounding sphere multiplier, default is 1.0
+  minDistance?: number   // Minimum distance (optional)
+  maxDistance?: number   // Maximum distance (optional)
+  controls?: { target?: THREE.Vector3; update?: () => void } | null // Optional OrbitControls-like object
+  azimuth?: number       // Horizontal angle (radians), default is Math.PI/4 (~45°)
+  elevation?: number     // Vertical angle (radians), default is Math.PI/4 (~45°)
+  easing?: 'linear' | 'easeInOut' | 'easeOut' | 'easeIn'  // Easing function type
+  onProgress?: (progress: number) => void  // Progress callback
 }
 
 /**
- * 推荐角度枚举，便于快速选取常见视角
+ * Recommended camera angles for quick selection of common views
  */
 export const FOLLOW_ANGLES = {
-  /** 等距斜视（默认视角）- 适合建筑、机械设备展示 */
+  /** Isometric view (default) - suitable for architecture, mechanical equipment */
   ISOMETRIC: { azimuth: Math.PI / 4, elevation: Math.PI / 4 },
-  /** 正前视角 - 适合正面展示、UI 对齐 */
+  /** Front view - suitable for frontal display, UI alignment */
   FRONT: { azimuth: 0, elevation: 0 },
-  /** 右侧视角 - 适合机械剖面、侧视检查 */
+  /** Right view - suitable for mechanical sections, side inspection */
   RIGHT: { azimuth: Math.PI / 2, elevation: 0 },
-  /** 左侧视角 */
+  /** Left view */
   LEFT: { azimuth: -Math.PI / 2, elevation: 0 },
-  /** 后视角 */
+  /** Back view */
   BACK: { azimuth: Math.PI, elevation: 0 },
-  /** 顶视图 - 适合地图、平面布局展示 */
+  /** Top view - suitable for maps, layout display */
   TOP: { azimuth: 0, elevation: Math.PI / 2 },
-  /** 低角度俯视 - 适合车辆、人物等近地物体 */
+  /** Low angle view - suitable for vehicles, characters near the ground */
   LOW_ANGLE: { azimuth: Math.PI / 4, elevation: Math.PI / 6 },
-  /** 高角度俯视 - 适合鸟瞰、全景浏览 */
+  /** High angle view - suitable for bird's eye view, panoramic browsing */
   HIGH_ANGLE: { azimuth: Math.PI / 4, elevation: Math.PI / 3 }
 } as const
 
 /**
- * 缓动函数集合
+ * Collection of easing functions
  */
 const EASING_FUNCTIONS = {
   linear: (t: number) => t,
@@ -49,31 +60,32 @@ const EASING_FUNCTIONS = {
 }
 
 /**
- * 自动将相机移到目标的斜上角位置，并保证目标在可视范围内（平滑过渡）- 优化版
- * 
- * ✨ 优化内容：
- * - 支持多种缓动函数
- * - 添加进度回调
- * - 支持取消动画
- * - WeakMap 跟踪防止泄漏
- * - 完善错误处理
+ * Automatically moves the camera to a diagonal position relative to the target,
+ * ensuring the target is within the field of view (smooth transition).
+ *
+ * Features:
+ * - Supports multiple easing functions
+ * - Adds progress callback
+ * - Supports animation cancellation
+ * - Uses WeakMap to track and prevent memory leaks
+ * - Robust error handling
  */
 export function followModels(
   camera: THREE.Camera,
   targets: THREE.Object3D | THREE.Object3D[] | null | undefined,
   options: FollowOptions = {}
 ): Promise<void> {
-  // ✨ 取消之前的动画
+  // Cancel previous animation
   cancelFollow(camera)
 
-  // ✨ 边界检查
+  // Boundary check
   const arr: THREE.Object3D[] = []
   if (!targets) return Promise.resolve()
   if (Array.isArray(targets)) arr.push(...targets.filter(Boolean))
   else arr.push(targets)
 
   if (arr.length === 0) {
-    console.warn('followModels: 目标对象为空')
+    console.warn('followModels: Target object is empty')
     return Promise.resolve()
   }
 
@@ -81,9 +93,9 @@ export function followModels(
     const box = new THREE.Box3()
     arr.forEach((o) => box.expandByObject(o))
 
-    // ✨ 检查包围盒有效性
+    // Check bounding box validity
     if (!isFinite(box.min.x) || !isFinite(box.max.x)) {
-      console.warn('followModels: 包围盒计算失败')
+      console.warn('followModels: Failed to calculate bounding box')
       return Promise.resolve()
     }
 
@@ -102,7 +114,7 @@ export function followModels(
     const easing = options.easing ?? 'easeOut'
     const onProgress = options.onProgress
 
-    // ✨ 获取缓动函数
+    // Get easing function
     const easingFn = EASING_FUNCTIONS[easing] || EASING_FUNCTIONS.easeOut
 
     let distance = 10
@@ -120,7 +132,7 @@ export function followModels(
       distance = camera.position.distanceTo(center)
     }
 
-    // 根据 azimuth / elevation 计算方向
+    // Calculate direction based on azimuth / elevation
     const hx = Math.sin(azimuth)
     const hz = Math.cos(azimuth)
     const dir = new THREE.Vector3(
@@ -155,14 +167,16 @@ export function followModels(
           camera.lookAt(endTarget)
         }
 
-        camera.updateProjectionMatrix?.()
+        if ((camera as any).updateProjectionMatrix) {
+          (camera as any).updateProjectionMatrix()
+        }
 
-        // ✨ 调用进度回调
+        // Call progress callback
         if (onProgress) {
           try {
             onProgress(t)
           } catch (error) {
-            console.error('followModels: 进度回调错误', error)
+            console.error('followModels: Progress callback error', error)
           }
         }
 
@@ -186,13 +200,13 @@ export function followModels(
       _animationMap.set(camera, rafId)
     })
   } catch (error) {
-    console.error('followModels: 执行失败', error)
+    console.error('followModels: Execution failed', error)
     return Promise.reject(error)
   }
 }
 
 /**
- * ✨ 取消相机的跟随动画
+ * Cancel the camera follow animation
  */
 export function cancelFollow(camera: THREE.Camera) {
   const rafId = _animationMap.get(camera)

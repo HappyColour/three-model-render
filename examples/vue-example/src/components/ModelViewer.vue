@@ -2,7 +2,7 @@
     <div id="three-model-render">
         <div ref="containerRef" class="three-container" />
         <div id="explode">
-            <button v-if="!exploded" @click="explode">EXPLODE</button>
+            <button v-if="!exploded" @click="explosion">EXPLODE</button>
             <button v-else @click="restore">RESTORE</button>
         </div>
         <div id="setView">
@@ -34,6 +34,18 @@
 </template>
 
 <script lang="ts" setup>
+/**
+ * @file ModelViewer.vue
+ * @description
+ * Comprehensive example component demonstrating 14+ tools from the library.
+ * Features:
+ * - Model loading (GLTF/GLB) with auto-setup
+ * - Camera view switching and following
+ * - Post-processing (Outline, Hover effect)
+ * - Interaction (Click, Explode)
+ * - Cleanup and resource disposal
+ */
+
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 import * as THREE from 'three'
 import { loadModelByUrl,disposeObject } from '@chocozhang/three-model-render';
@@ -46,7 +58,7 @@ import { enableHoverBreath } from '@chocozhang/three-model-render';
 import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer'
 import { createModelClickHandler } from '@chocozhang/three-model-render';
-import { GroupExploder } from '@chocozhang/three-model-render'
+import { GroupExploder } from '@chocozhang/three-model-render/effect'
 
 const containerRef = ref<HTMLDivElement | null>(null)
 let scene!: THREE.Scene
@@ -146,7 +158,7 @@ function changeView() {
 
 function initHoverBreath() {
     ppManager = initPostProcessing(renderer, scene, camera, {
-        resolutionScale: 0.8, // 性能优化
+        resolutionScale: 0.8, // Performance optimization
 		edgeStrength: 4,
 		visibleEdgeColor: '#ffee00'
     })
@@ -159,7 +171,7 @@ function initHoverBreath() {
 		renderer,
 		outlinePass,
 		// highlightNames: inititalNames,
-		throttleDelay: 16, // ✨ 60fps节流
+		throttleDelay: 16, // ✨ 60fps throttle
 		minStrength: 2,
 		maxStrength: 8,
 		speed: 3
@@ -188,7 +200,7 @@ function initGroupExploder() {
     exploder.init()
 }
 
-function explode() {
+function explosion() {
     exploded.value = true
     exploder.setMeshes(explosionTargets, { autoRestorePrev: true })
     exploder.explode({ mode: 'grid', spacing: 2.8, duration: 1100, lift: 1.2, cameraPadding: 0.8, dimOthers: { enabled: true, opacity: 0.1 } })
@@ -415,15 +427,6 @@ onBeforeUnmount(() => {
 .modal-enter-from,
 .modal-leave-to {
     opacity: 0;
-    /* transform: translateX(100%);  Note: Wrapper transition might need adjustment for absolute position, but here we animate opacity/transform of child usually. 
-       Vue transition wrapper applies classes to the root element inside <Transition>. 
-       Since .modal-overlay is the root, animating it might fade the whole thing.
-       We want to slide the CARD. Best practice: transition wrapper on Card or use nested transition. 
-       However, simplified: slide the whole overlay if it was just the card, but overlay is fixed.
-       
-       Better approach for this structure: Animate transparency of overlay (if any) and Transform of card.
-       But here 'modal-overlay' IS the transition root. 
-    */
 }
 
 .modal-enter-active .modal-card {

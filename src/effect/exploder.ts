@@ -1,141 +1,37 @@
-// src/utils/GroupExploder.ts 
 /**
- * GroupExploder - 基于 Three.js 的模型爆炸效果工具（支持 Vue3 + TS）
+ * @file exploder.ts
+ * @description
+ * GroupExploder - Three.js based model explosion effect tool (Vue3 + TS Support)
  * ----------------------------------------------------------------------
- * 该工具用于对指定 Mesh 的集合进行“爆炸 / 还原”动画：
- *  - 仅初始化一次（onMounted）
- *  - 支持动态切换模型并自动还原上一个模型的爆炸状态
- *  - 支持多种排列模式（ring / spiral / grid / radial）
- *  - 支持非爆炸对象自动透明化（dimOthers）
- *  - 支持摄像机自动前置定位到最佳观察点
- *  - 所有动画均采用原生 requestAnimationFrame 实现
+ * This tool is used to perform "explode / restore" animations on a set of specified Meshes:
+ *  - Initialize only once (onMounted)
+ *  - Supports dynamic switching of models and automatically restores the explosion state of the previous model
+ *  - Supports multiple arrangement modes (ring / spiral / grid / radial)
+ *  - Supports automatic transparency for non-exploded objects (dimOthers)
+ *  - Supports automatic camera positioning to the best observation point
+ *  - All animations use native requestAnimationFrame
  *
- * ----------------------------------------------------------------------
- * 🔧 构造参数
- * ----------------------------------------------------------------------
- * @param scene      Three.js 场景实例
- * @param camera     Three.js 相机（一般为 PerspectiveCamera）
- * @param controls   OrbitControls 控件实例（必须绑定 camera）
- *
- * ----------------------------------------------------------------------
- * 🔥 爆炸参数 ExplodeOptions
- * ----------------------------------------------------------------------
- * 所有参数均可在 explode() 调用时指定，也可设置默认值。
- *
- * type ArrangeMode = 'ring' | 'spiral' | 'grid' | 'radial'
- *
- * @param mode?: ArrangeMode   
- *        爆炸排列方式：
- *        - 'ring'   环形排列（默认）
- *        - 'spiral' 螺旋上升排列
- *        - 'grid'   平面网格排列（规则整齐）
- *        - 'radial' 从中心点向外扩散
- *
- * @param spacing?: number    
- *        相邻爆炸对象之间的间距（默认：2.5）
- *
- * @param duration?: number   
- *        爆炸动画时长（ms），原生 rAF 完成（默认：1000）
- *
- * @param lift?: number       
- *        爆炸对象整体抬升的高度因子，用于让爆炸看起来更立体（默认：0.6）
- *
- * @param cameraPadding?: number 
- *        摄像机贴合爆炸后包围球时的额外安全距离（默认：1.2）
- *
- * @param autoRestorePrev?: boolean 
- *        当切换模型时，是否自动 restore 上一个模型的爆炸元素（默认：true）
- *
- * @param dimOthers?: { enabled: boolean; opacity?: number }
- *        非爆炸对象透明化配置：
- *        - enabled: true   开启
- *        - opacity: number 指定非爆炸对象透明度（默认：0.15）
- *
- * @param debug?: boolean
- *        是否开启调试日志，输出所有内部状态（默认 false）
- *
- *
- * ----------------------------------------------------------------------
- * 📌 方法说明
- * ----------------------------------------------------------------------
- *
- * ◆ setMeshes(meshSet: Set<Mesh>, contextId?: string)
- *    设置当前模型的爆炸 Mesh 集合：
- *      - 会记录 Mesh 的初始 transform
- *      - 根据 autoRestorePrev 自动还原上次爆炸
- *      - 第二个参数 contextId 可选，用于区分业务场景
- *
- *
- * ◆ explode(options?: ExplodeOptions)
- *    对当前 meshSet 执行爆炸动画：
- *      - 根据 mode 生成爆炸布局
- *      - 相机先自动飞向最佳观察点
- *      - 执行 mesh 位移动画
- *      - 按需将非爆炸模型透明化
- *
- *
- * ◆ restore(duration?: number)
- *    还原所有爆炸 Mesh 到爆炸前的 transform：
- *      - 支持平滑动画
- *      - 自动取消透明化
- *
- *
- * ◆ dispose()
- *    移除事件监听、取消动画、清理引用（在组件销毁时调用）
- *
- *
- * ----------------------------------------------------------------------
- * 🎨 排列模式说明
- * ----------------------------------------------------------------------
- *
- * 1. Ring（环形）
- *    - 按圆均匀分布
- *    - spacing 控制半径
- *    - lift 控制整体抬起高度
- *
- * 2. Spiral（螺旋）
- *    - 在环形基础上添加高度递增（y++)
- *    - 数量大时视觉效果最强
- *
- * 3. Grid（网格）
- *    - 类似棋盘布局
- *    - spacing 控制网格大小
- *    - z 不变或小幅度变化
- *
- * 4. Radial（径向扩散）
- *    - 从中心向外 “爆炸式” 发散
- *    - 对于大型组件分解展示非常适合
- *
- *
- * ----------------------------------------------------------------------
- * 📌 使用示例（业务层 Vue）
- * ----------------------------------------------------------------------
- *
- * const exploder = new GroupExploder(scene, camera, controls);
- *
- * onMounted(() => {
- *   exploder.setMeshes(new Set([meshA, meshB, meshC]));
- * });
- *
- * const triggerExplode = () => {
- *   exploder.explode({
- *     mode: 'ring',
- *     spacing: 3,
- *     duration: 1200,
- *     lift: 0.8,
- *     cameraPadding: 1.3,
- *     dimOthers: { enabled: true, opacity: 0.2 },
- *   });
- * };
- *
- * const triggerRestore = () => {
- *   exploder.restore(600);
- * };
- *
+ * @best-practice
+ * - Initialize in `onMounted`.
+ * - Use `setMeshes` to update the active set of meshes to explode.
+ * - Call `explode()` to trigger the effect and `restore()` to reset.
  */
+
 import * as THREE from 'three';
 
 type ArrangeMode = 'ring' | 'spiral' | 'grid' | 'radial';
+
+/**
+ * Explosion Parameters
+ * @param mode Explosion arrangement mode: 'ring' | 'spiral' | 'grid' | 'radial'
+ * @param spacing Spacing between adjacent exploded objects (default: 2.5)
+ * @param duration Animation duration in ms (default: 1000)
+ * @param lift Lift factor for exploded objects (default: 0.6)
+ * @param cameraPadding Extra safety distance for camera framing (default: 1.2)
+ * @param autoRestorePrev Whether to automatically restore the previous model's explosion when switching models (default: true)
+ * @param dimOthers Configuration for dimming non-exploded objects
+ * @param debug Enable debug logs (default: false)
+ */
 export type ExplodeOptions = {
   mode?: ArrangeMode;
   spacing?: number;
@@ -188,6 +84,12 @@ export class GroupExploder {
 
   public onLog?: (s: string) => void;
 
+  /**
+   * Constructor
+   * @param scene Three.js Scene instance
+   * @param camera Three.js Camera (usually PerspectiveCamera)
+   * @param controls OrbitControls instance (must be bound to camera)
+   */
   constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera | THREE.Camera, controls?: { target?: THREE.Vector3; update?: () => void }) {
     this.scene = scene;
     this.camera = camera;
@@ -206,10 +108,12 @@ export class GroupExploder {
   }
 
   /**
-   * setMeshes(newSet):
+   * Set the current set of meshes for explosion.
    * - Detects content-level changes even if same Set reference is used.
    * - Preserves prevSet/stateMap to allow async restore when needed.
    * - Ensures stateMap contains snapshots for *all meshes in the new set*.
+   * @param newSet The new set of meshes
+   * @param contextId Optional context ID to distinguish business scenarios
    */
   async setMeshes(newSet: Set<THREE.Mesh> | null, options?: { autoRestorePrev?: boolean; restoreDuration?: number }) {
     const autoRestorePrev = options?.autoRestorePrev ?? true;
@@ -318,7 +222,7 @@ export class GroupExploder {
     set.forEach((m) => {
       try {
         m.updateMatrixWorld(true);
-      } catch {}
+      } catch { }
       if (!this.stateMap.has(m)) {
         try {
           this.stateMap.set(m, {
@@ -432,6 +336,11 @@ export class GroupExploder {
     return;
   }
 
+  /**
+   * Restore all exploded meshes to their original transform:
+   * - Supports smooth animation
+   * - Automatically cancels transparency
+   */
   restore(duration = 400): Promise<void> {
     if (!this.currentSet || this.currentSet.size === 0) {
       this.log('restore: no currentSet to restore');
@@ -463,7 +372,7 @@ export class GroupExploder {
     for (const m of meshes) {
       try {
         m.updateMatrixWorld(true);
-      } catch {}
+      } catch { }
       const s = new THREE.Vector3();
       try {
         m.getWorldPosition(s);
@@ -798,44 +707,77 @@ export class GroupExploder {
 
     if (!(this.camera instanceof THREE.PerspectiveCamera)) {
       if (this.controls && this.controls.target) {
-        this.controls.target.copy(targetCenter);
-        if (typeof this.controls.update === 'function') this.controls.update();
+        // Fallback for non-PerspectiveCamera
+        const startTarget = this.controls.target.clone();
+        const startPos = this.camera.position.clone();
+        const endTarget = targetCenter.clone();
+        const dir = startPos.clone().sub(startTarget).normalize();
+        const dist = startPos.distanceTo(startTarget);
+        const endPos = endTarget.clone().add(dir.multiplyScalar(dist));
+
+        const startTime = performance.now();
+        const tick = (now: number) => {
+          const t = Math.min(1, (now - startTime) / duration);
+          const k = easeInOutQuad(t);
+          if (this.controls && this.controls.target) {
+            this.controls.target.lerpVectors(startTarget, endTarget, k);
+          }
+          this.camera.position.lerpVectors(startPos, endPos, k);
+          if (this.controls?.update) this.controls.update();
+
+          if (t < 1) {
+            this.cameraAnimId = requestAnimationFrame(tick);
+          } else {
+            this.cameraAnimId = null;
+          }
+        };
+        this.cameraAnimId = requestAnimationFrame(tick);
       }
       return Promise.resolve();
     }
 
-    const cam = this.camera as THREE.PerspectiveCamera;
-    const fov = (cam.fov * Math.PI) / 180;
-    const safeRadius = isFinite(targetRadius) && targetRadius > 0 ? targetRadius : 1;
-    const desiredDistance = Math.min(1e6, (safeRadius * (opts?.padding ?? padding)) / Math.sin(fov / 2));
+    // PerspectiveCamera logic
+    const fov = THREE.MathUtils.degToRad(this.camera.fov);
+    const aspect = this.camera.aspect;
+    // Calculate distance needed to fit the sphere
+    // tan(fov/2) = radius / distance  => distance = radius / tan(fov/2)
+    // We also consider aspect ratio for horizontal fit
+    const distV = targetRadius / Math.sin(fov / 2);
+    const distH = targetRadius / Math.sin(Math.min(fov, fov * aspect) / 2); // approximate
+    const dist = Math.max(distV, distH) * padding;
 
-    const camPos = cam.position.clone();
-    const dir = camPos.clone().sub(targetCenter);
-    if (dir.length() === 0) dir.set(0, 0, 1);
-    else dir.normalize();
+    const startPos = this.camera.position.clone();
+    const startTarget = this.controls?.target ? this.controls.target.clone() : new THREE.Vector3(); // assumption
+    if (!this.controls?.target) {
+      this.camera.getWorldDirection(startTarget);
+      startTarget.add(startPos);
+    }
 
-    const newCamPos = targetCenter.clone().add(dir.multiplyScalar(desiredDistance));
-    const startPos = cam.position.clone();
-    const startTarget = (this.controls && this.controls.target) ? (this.controls.target.clone()) : this.getCameraLookAtPoint();
+    // Determine end position: keep current viewing direction relative to center
+    const dir = startPos.clone().sub(startTarget).normalize();
+    if (dir.lengthSq() < 0.001) dir.set(0, 0, 1);
+
     const endTarget = targetCenter.clone();
-
-    const startTime = performance.now();
+    const endPos = endTarget.clone().add(dir.multiplyScalar(dist));
 
     return new Promise<void>((resolve) => {
+      const startTime = performance.now();
       const tick = (now: number) => {
-        const t = Math.min(1, (now - startTime) / Math.max(1, duration));
-        const eased = easeInOutQuad(t);
+        const t = Math.min(1, (now - startTime) / duration);
+        const k = easeInOutQuad(t);
 
-        cam.position.lerpVectors(startPos, newCamPos, eased);
-        if (this.controls && (this.controls as any).target) (this.controls as any).target.lerpVectors(startTarget, endTarget, eased);
+        this.camera.position.lerpVectors(startPos, endPos, k);
+        if (this.controls && this.controls.target) {
+          this.controls.target.lerpVectors(startTarget, endTarget, k);
+          this.controls.update?.();
+        } else {
+          this.camera.lookAt(endTarget); // simple lookAt if no controls
+        }
 
-        cam.updateProjectionMatrix();
-        if (this.controls && typeof this.controls.update === 'function') this.controls.update();
-
-        if (t < 1) this.cameraAnimId = requestAnimationFrame(tick);
-        else {
+        if (t < 1) {
+          this.cameraAnimId = requestAnimationFrame(tick);
+        } else {
           this.cameraAnimId = null;
-          this.log(`animateCameraToFit: done. center=${targetCenter.toArray().map((n) => n.toFixed(2))}, radius=${targetRadius.toFixed(2)}`);
           resolve();
         }
       };
@@ -843,49 +785,32 @@ export class GroupExploder {
     });
   }
 
-  private getCameraLookAtPoint() {
-    const dir = new THREE.Vector3();
-    (this.camera as THREE.PerspectiveCamera).getWorldDirection(dir);
-    return this.camera.position.clone().add(dir.multiplyScalar(10));
-  }
-
+  /**
+   * Cancel all running animations
+   */
   private cancelAnimations() {
-    if (this.animId) {
+    if (this.animId !== null) {
       cancelAnimationFrame(this.animId);
       this.animId = null;
     }
-    if (this.cameraAnimId) {
+    if (this.cameraAnimId !== null) {
       cancelAnimationFrame(this.cameraAnimId);
       this.cameraAnimId = null;
     }
   }
 
-  async dispose(restoreBefore = true) {
+  /**
+   * Dispose: remove listener, cancel animation, clear references
+   */
+  dispose() {
     this.cancelAnimations();
-    if (restoreBefore && this.isExploded) {
-      try {
-        await this.restore(200);
-      } catch {}
-    }
-    // force restore of materials
-    for (const [mat, ctxs] of Array.from(this.materialContexts.entries())) {
-      const snap = this.materialSnaps.get(mat);
-      if (snap) {
-        (mat as any).transparent = snap.transparent;
-        (mat as any).opacity = snap.opacity;
-        if (typeof snap.depthWrite !== 'undefined') (mat as any).depthWrite = snap.depthWrite;
-        mat.needsUpdate = true;
-      }
-      this.materialContexts.delete(mat);
-      this.materialSnaps.delete(mat);
-    }
-    this.contextMaterials.clear();
-    this.stateMap.clear();
-    this.prevStateMap.clear();
     this.currentSet = null;
     this.prevSet = null;
-    this.isInitialized = false;
-    this.isExploded = false;
-    this.log('dispose: cleaned up');
+    this.stateMap.clear();
+    this.prevStateMap.clear();
+    this.materialContexts.clear();
+    this.materialSnaps.clear();
+    this.contextMaterials.clear();
+    this.log('dispose() called, resources cleaned up');
   }
 }

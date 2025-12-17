@@ -1,3 +1,14 @@
+/**
+ * @file modelsLabel.ts
+ * @description
+ * Creates interactive 2D labels (DOM elements) attached to 3D objects with connecting lines.
+ *
+ * @best-practice
+ * - Use `createModelsLabel` to annotate parts of a model.
+ * - Supports fading endpoints, pulsing dots, and custom styling.
+ * - Performance optimized with caching and RAF throttling.
+ */
+
 import * as THREE from 'three';
 
 interface LabelOptions {
@@ -6,32 +17,32 @@ interface LabelOptions {
   background?: string;
   padding?: string;
   borderRadius?: string;
-  lift?: number; // 抬高像素
-  dotSize?: number; // 圆点直径
-  dotSpacing?: number; // 圆点与标签间距
-  lineColor?: string; // 线条颜色
-  lineWidth?: number; // 线条粗细
-  updateInterval?: number; // ✨ 更新间隔（ms）
-  fadeInDuration?: number; // ✨ 淡入时长（ms）
+  lift?: number; // Lift pixel amount
+  dotSize?: number; // Dot diameter
+  dotSpacing?: number; // Spacing between dot and label
+  lineColor?: string; // Line color
+  lineWidth?: number; // Line width
+  updateInterval?: number; // Update interval (ms)
+  fadeInDuration?: number; // Fade-in duration (ms)
 }
 
 interface LabelManager {
   updateModel: (model: THREE.Object3D) => void;
   updateLabelsMap: (map: Record<string, string>) => void;
-  pause: () => void;  // ✨ 新增暂停
-  resume: () => void;  // ✨ 新增恢复
+  pause: () => void;  // Pause
+  resume: () => void;  // Resume
   dispose: () => void;
 }
 
 /**
- * 创建模型标签（带连线和脉冲圆点）- 优化版
- * 
- * ✨ 优化内容：
- * - 支持暂停/恢复更新
- * - 可配置更新间隔
- * - 淡入淡出效果
- * - 缓存包围盒计算
- * - RAF 管理优化
+ * Create Model Labels (with connecting lines and pulsing dots) - Optimized
+ *
+ * Features:
+ * - Supports pause/resume
+ * - Configurable update interval
+ * - Fade in/out effects
+ * - Cached bounding box calculation
+ * - RAF management optimization
  */
 export function createModelsLabel(
   camera: THREE.Camera,
@@ -51,8 +62,8 @@ export function createModelsLabel(
     dotSpacing: options?.dotSpacing ?? 2,
     lineColor: options?.lineColor || 'rgba(200,200,200,0.7)',
     lineWidth: options?.lineWidth ?? 1,
-    updateInterval: options?.updateInterval ?? 0,  // ✨ 默认每帧更新
-    fadeInDuration: options?.fadeInDuration ?? 300,  // ✨ 淡入时长
+    updateInterval: options?.updateInterval ?? 0,  // Default update every frame
+    fadeInDuration: options?.fadeInDuration ?? 300,  // Fade-in duration
   };
 
   const container = document.createElement('div');
@@ -80,24 +91,24 @@ export function createModelsLabel(
   let currentModel = parentModel;
   let currentLabelsMap = { ...modelLabelsMap };
 
-  // ✨ 缓存包围盒
+  // Cache bounding box
   interface LabelData {
     object: THREE.Object3D;
     el: HTMLDivElement;
     wrapper: HTMLDivElement;
     dot: HTMLDivElement;
     line: SVGLineElement;
-    cachedBox: THREE.Box3 | null;  // ✨ 缓存包围盒
-    cachedTopPos: THREE.Vector3 | null;  // ✨ 缓存顶部位置
+    cachedBox: THREE.Box3 | null;  // Cached bounding box
+    cachedTopPos: THREE.Vector3 | null;  // Cached top position
   }
 
   let labels: LabelData[] = [];
   let isActive = true;
-  let isPaused = false;  // ✨ 暂停状态
-  let rafId: number | null = null;  // ✨ RAF ID
-  let lastUpdateTime = 0;  // ✨ 上次更新时间
+  let isPaused = false;
+  let rafId: number | null = null;
+  let lastUpdateTime = 0;
 
-  // ✨ 注入样式（带淡入动画）
+  // Inject styles (with fade-in animation)
   const styleId = 'three-model-label-styles';
   if (!document.getElementById(styleId)) {
     const style = document.createElement('style');
@@ -137,16 +148,16 @@ export function createModelsLabel(
     document.head.appendChild(style);
   }
 
-  // ✨ 获取或更新缓存的顶部位置
+  // Get or update cached top position
   const getObjectTopPosition = (labelData: LabelData): THREE.Vector3 => {
     const obj = labelData.object;
 
-    // 如果有缓存且对象没有变换，直接返回
+    // If cached and object hasn't transformed, return cached
     if (labelData.cachedTopPos && !obj.matrixWorldNeedsUpdate) {
       return labelData.cachedTopPos.clone();
     }
 
-    // 重新计算
+    // Recalculate
     const box = new THREE.Box3().setFromObject(obj);
     labelData.cachedBox = box;
 
@@ -234,7 +245,7 @@ export function createModelsLabel(
           wrapper,
           dot,
           line,
-          cachedBox: null,  // ✨ 初始化缓存
+          cachedBox: null,  // Initialize cache
           cachedTopPos: null
         });
       }
@@ -243,14 +254,14 @@ export function createModelsLabel(
 
   rebuildLabels();
 
-  // ✨ 优化的更新函数
+  // Optimized update function
   const updateLabels = (timestamp: number) => {
     if (!isActive || isPaused) {
       rafId = null;
       return;
     }
 
-    // ✨ 节流处理
+    // Throttle
     if (cfg.updateInterval > 0 && timestamp - lastUpdateTime < cfg.updateInterval) {
       rafId = requestAnimationFrame(updateLabels);
       return;
@@ -266,7 +277,7 @@ export function createModelsLabel(
 
     labels.forEach((labelData) => {
       const { el, wrapper, dot, line } = labelData;
-      const topWorld = getObjectTopPosition(labelData);  // ✨ 使用缓存
+      const topWorld = getObjectTopPosition(labelData);  // Use cache
       const topNDC = topWorld.clone().project(camera);
 
       const modelX = (topNDC.x * 0.5 + 0.5) * width + rect.left;
@@ -310,7 +321,7 @@ export function createModelsLabel(
       currentLabelsMap = { ...newMap };
       rebuildLabels();
     },
-    // ✨ 暂停更新
+    // Pause update
     pause() {
       isPaused = true;
       if (rafId !== null) {
@@ -318,7 +329,7 @@ export function createModelsLabel(
         rafId = null;
       }
     },
-    // ✨ 恢复更新
+    // Resume update
     resume() {
       if (!isPaused) return;
       isPaused = false;

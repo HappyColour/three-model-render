@@ -1,17 +1,27 @@
-// src/utils/skyboxLoader.ts
+/**
+ * @file skyboxLoader.ts
+ * @description
+ * Utility for loading skyboxes (CubeTexture or Equirectangular/HDR).
+ *
+ * @best-practice
+ * - Use `loadSkybox` for a unified interface.
+ * - Supports internal caching to avoid reloading the same skybox.
+ * - Can set background and environment map independently.
+ */
+
 import * as THREE from 'three'
 
 /**
- * Skybox 加载工具
+ * Skybox Loader Utility
  *
- * 支持：
- *  - 立方体贴图：paths: [px, nx, py, ny, pz, nz]
- *  - 等距 / HDR 全景：url: 'path/to/scene.hdr' 或 jpg
+ * Supports:
+ *  - Cube Texture: paths: [px, nx, py, ny, pz, nz]
+ *  - Equirectangular / HDR Panorama: url: 'path/to/scene.hdr' or jpg
  *
- * 返回一个 SkyboxHandle，包含对 scene 的修改记录和 dispose() 方法。
+ * Returns a SkyboxHandle containing modification records for the scene and a dispose() method.
  */
 
-/** 统一返回句柄 */
+/** Unified Return Handle */
 export type SkyboxHandle = {
   key: string
   backgroundTexture: THREE.Texture | null
@@ -19,23 +29,23 @@ export type SkyboxHandle = {
   pmremGenerator: THREE.PMREMGenerator | null
   setAsBackground: boolean
   setAsEnvironment: boolean
-  /** 卸载并释放资源（如果是缓存共享，需要 refCount 逻辑） */
+  /** Unload and release resources (if cached/shared, refCount logic is needed) */
   dispose: () => void
 }
 
-/** 加载选项与默认值 */
+/** Loading Options & Defaults */
 export interface SkyboxOptions {
-  setAsBackground?: boolean       // 是否将贴图作为 scene.background（默认 true）
-  setAsEnvironment?: boolean      // 是否将贴图作为 scene.environment（默认 true）
-  // 如果你已经有一个 pmremGenerator（并在多个 skybox/load 中复用），可传入以避免重复创建
+  setAsBackground?: boolean       // Whether to set texture as scene.background (default true)
+  setAsEnvironment?: boolean      // Whether to set texture as scene.environment (default true)
+  // If you already have a pmremGenerator (and reuse it across multiple skybox/load), pass it in to avoid duplicate creation
   pmremGenerator?: THREE.PMREMGenerator | null
-  // 是否使用 sRGB 编码（默认 true，适用于大多数色彩贴图）
+  // Whether to use sRGB encoding (default true, suitable for most color textures)
   useSRGBEncoding?: boolean
-  // 缓存开关（如果 true，相同 key 会复用已有纹理，引用计数自动管理）
+  // Cache switch (if true, same key reuses existing texture, refCount managed automatically)
   cache?: boolean
 }
 
-/** 默认值 */
+/** Default Values */
 const DEFAULT_OPTIONS: Required<Omit<SkyboxOptions, 'pmremGenerator'>> = {
   setAsBackground: true,
   setAsEnvironment: true,
@@ -43,19 +53,19 @@ const DEFAULT_OPTIONS: Required<Omit<SkyboxOptions, 'pmremGenerator'>> = {
   cache: true
 }
 
-/** 内部缓存：key -> { handle, refCount } */
+/** Internal Cache: key -> { handle, refCount } */
 const cubeCache = new Map<string, { handle: SkyboxHandle; refCount: number }>()
 const equirectCache = new Map<string, { handle: SkyboxHandle; refCount: number }>()
 
 /* -------------------------------------------
-   公共函数：加载 skybox（自动选 cube 或 equirect）
+   Public Function: Load skybox (Automatically choose cube or equirect)
    ------------------------------------------- */
 
 /**
- * 加载立方体贴图（6张）
- * @param renderer THREE.WebGLRenderer - 用于 PMREM 生成环境贴图
+ * Load Cube Texture (6 images)
+ * @param renderer THREE.WebGLRenderer - Used for PMREM generating environment map
  * @param scene THREE.Scene
- * @param paths string[] 6 张图片地址，顺序：[px, nx, py, ny, pz, nz]
+ * @param paths string[] 6 image paths, order: [px, nx, py, ny, pz, nz]
  * @param opts SkyboxOptions
  */
 export async function loadCubeSkybox(
@@ -69,7 +79,7 @@ export async function loadCubeSkybox(
 
   const key = paths.join('|')
 
-  // 缓存处理
+  // Cache handling
   if (options.cache && cubeCache.has(key)) {
     const rec = cubeCache.get(key)!
     rec.refCount += 1
@@ -79,7 +89,7 @@ export async function loadCubeSkybox(
     return rec.handle
   }
 
-  // 加载立方体贴图
+  // Load cube texture
   const loader = new THREE.CubeTextureLoader()
   const texture = await new Promise<THREE.CubeTexture>((resolve, reject) => {
     loader.load(
@@ -90,7 +100,7 @@ export async function loadCubeSkybox(
     )
   })
 
-  // 设置编码与映射
+  // Set encoding and mapping
   if (options.useSRGBEncoding) texture.encoding = THREE.sRGBEncoding
   texture.mapping = THREE.CubeReflectionMapping
 
@@ -138,13 +148,13 @@ export async function loadCubeSkybox(
 
       // dispose resources only if not cached/shared
       if (envRenderTarget) {
-        try { envRenderTarget.dispose() } catch {}
+        try { envRenderTarget.dispose() } catch { }
       }
-      try { texture.dispose() } catch {}
+      try { texture.dispose() } catch { }
 
       // dispose pmremGenerator we created
       if (!options.pmremGenerator && pmremGenerator) {
-        try { pmremGenerator.dispose() } catch {}
+        try { pmremGenerator.dispose() } catch { }
       }
     }
   }
@@ -154,7 +164,7 @@ export async function loadCubeSkybox(
 }
 
 /**
- * 加载等距/单图（支持 HDR via RGBELoader）
+ * Load Equirectangular/Single Image (Supports HDR via RGBELoader)
  * @param renderer THREE.WebGLRenderer
  * @param scene THREE.Scene
  * @param url string - *.hdr, *.exr, *.jpg, *.png
@@ -177,7 +187,7 @@ export async function loadEquirectSkybox(
     return rec.handle
   }
 
-  // 动态导入 RGBELoader（用于 .hdr/.exr），如果加载的是普通 jpg/png 可直接用 TextureLoader
+  // Dynamically import RGBELoader (for .hdr/.exr), if loading normal jpg/png directly use TextureLoader
   const isHDR = /\.hdr$|\.exr$/i.test(url)
   let hdrTexture: THREE.Texture
 
@@ -221,7 +231,7 @@ export async function loadEquirectSkybox(
   }
 
   // We can dispose the original hdrTexture (the PMREM target contains the needed data)
-  try { hdrTexture.dispose() } catch {}
+  try { hdrTexture.dispose() } catch { }
 
   const handle: SkyboxHandle = {
     key,
@@ -234,9 +244,9 @@ export async function loadEquirectSkybox(
       if (options.setAsBackground && scene.background === envTexture) scene.background = null
       if (options.setAsEnvironment && scene.environment === envTexture) scene.environment = null
 
-      try { envRenderTarget.dispose() } catch {}
+      try { envRenderTarget.dispose() } catch { }
       if (!options.pmremGenerator && pmremGenerator) {
-        try { pmremGenerator.dispose() } catch {}
+        try { pmremGenerator.dispose() } catch { }
       }
     }
   }
@@ -246,7 +256,7 @@ export async function loadEquirectSkybox(
 }
 
 /* -------------------------
-   对外的通用 loadSkybox 接口
+   Public General loadSkybox Interface
    ------------------------- */
 
 export type LoadSkyboxParams =
@@ -264,10 +274,10 @@ export async function loadSkybox(
 }
 
 /* -------------------------
-   缓存/引用计数 辅助方法
+   Cache / Reference Counting Helper Methods
    ------------------------- */
 
-/** 释放一个缓存的 skybox（会减少 refCount，refCount=0 时才真正 dispose） */
+/** Release a cached skybox (decrements refCount, only truly disposes when refCount=0) */
 export function releaseSkybox(handle: SkyboxHandle) {
   // check cube cache
   if (cubeCache.has(handle.key)) {

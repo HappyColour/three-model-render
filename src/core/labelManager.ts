@@ -1,13 +1,24 @@
+/**
+ * @file labelManager.ts
+ * @description
+ * Manages HTML labels attached to 3D objects. Efficiently updates label positions based on camera movement.
+ *
+ * @best-practice
+ * - Use `addChildModelLabels` to label parts of a loaded model.
+ * - Labels are HTML elements overlaid on the canvas.
+ * - Supports performance optimization via caching and visibility culling.
+ */
+
 import * as THREE from 'three';
 
 interface LabelOptions {
-  fontSize?: string;       // 标签字体大小
-  color?: string;          // 字体颜色
-  background?: string;     // 背景颜色
-  padding?: string;        // 内边距
-  borderRadius?: string;   // 圆角
-  updateInterval?: number; // 更新间隔（ms），默认每帧更新，设置后按间隔更新
-  enableCache?: boolean;   // 是否启用包围盒缓存，默认 true
+  fontSize?: string;       // Label font size
+  color?: string;          // Font color
+  background?: string;     // Background color
+  padding?: string;        // Padding
+  borderRadius?: string;   // Border radius
+  updateInterval?: number; // Update interval (ms), default updates every frame. Set to >0 to update on interval.
+  enableCache?: boolean;   // Whether to enable bounding box caching, default true
 }
 
 interface LabelManager {
@@ -18,20 +29,20 @@ interface LabelManager {
 }
 
 /**
- * 给子模型添加头顶标签（支持 Mesh 和 Group）- 优化版
- * 
- * ✨ 性能优化：
- * - 缓存包围盒，避免每帧重复计算
- * - 支持暂停/恢复更新
- * - 可配置更新间隔，降低 CPU 占用
- * - 只在可见时更新，隐藏时自动暂停
- * 
- * @param camera THREE.Camera - 场景摄像机
- * @param renderer THREE.WebGLRenderer - 渲染器，用于屏幕尺寸
- * @param parentModel THREE.Object3D - FBX 根节点或 Group
- * @param modelLabelsMap Record<string,string> - 模型 name → 标签文字 映射表
- * @param options LabelOptions - 可选标签样式配置
- * @returns LabelManager - 包含 pause/resume/dispose 的管理接口
+ * Add overhead labels to child models (supports Mesh and Group)
+ *
+ * Features:
+ * - Caches bounding boxes to avoid repetitive calculation every frame
+ * - Supports pause/resume
+ * - Configurable update interval to reduce CPU usage
+ * - Automatically pauses when hidden
+ *
+ * @param camera THREE.Camera - Scene camera
+ * @param renderer THREE.WebGLRenderer - Renderer, used for screen size
+ * @param parentModel THREE.Object3D - FBX root node or Group
+ * @param modelLabelsMap Record<string,string> - Map of model name to label text
+ * @param options LabelOptions - Optional label style configuration
+ * @returns LabelManager - Management interface containing pause/resume/dispose
  */
 export function addChildModelLabels(
   camera: THREE.Camera,
@@ -40,9 +51,9 @@ export function addChildModelLabels(
   modelLabelsMap: Record<string, string>,
   options?: LabelOptions
 ): LabelManager {
-  // 防御性检查：确保 parentModel 已加载
+  // Defensive check: ensure parentModel is loaded
   if (!parentModel || typeof parentModel.traverse !== 'function') {
-    console.error('parentModel 无效，请确保 FBX 模型已加载完成');
+    console.error('parentModel invalid, please ensure the FBX model is loaded');
     return {
       pause: () => { },
       resume: () => { },
@@ -51,20 +62,20 @@ export function addChildModelLabels(
     };
   }
 
-  // 配置项
+  // Configuration
   const enableCache = options?.enableCache !== false;
   const updateInterval = options?.updateInterval || 0;
 
-  // 创建标签容器，绝对定位，放在 body 中
+  // Create label container, absolute positioning, attached to body
   const container = document.createElement('div');
   container.style.position = 'absolute';
   container.style.top = '0';
   container.style.left = '0';
-  container.style.pointerEvents = 'none'; // 避免阻挡鼠标事件
+  container.style.pointerEvents = 'none'; // Avoid blocking mouse events
   container.style.zIndex = '1000';
   document.body.appendChild(container);
 
-  // 保存每个标签对应的模型对象及缓存的包围盒
+  // Save model object and cached bounding box corresponding to each label
   interface LabelData {
     object: THREE.Object3D;
     el: HTMLDivElement;
@@ -74,39 +85,39 @@ export function addChildModelLabels(
   }
   const labels: LabelData[] = [];
 
-  // 状态管理
+  // State management
   let rafId: number | null = null;
   let isPaused = false;
   let lastUpdateTime = 0;
 
-  // 遍历所有子模型
+  // Traverse all child models
   parentModel.traverse((child: any) => {
-    // 只处理 Mesh 或 Group
+    // Only process Mesh or Group
     if ((child.isMesh || child.type === 'Group')) {
-      // 动态匹配 name，防止 undefined
+      // Dynamic matching of name to prevent undefined
       const labelText = Object.entries(modelLabelsMap).find(([key]) => child.name.includes(key))?.[1];
-      if (!labelText) return; // 没有匹配标签则跳过
+      if (!labelText) return; // Skip if no matching label
 
-      // 创建 DOM 标签
+      // Create DOM label
       const el = document.createElement('div');
       el.innerText = labelText;
 
-      // 样式直接在 JS 中定义，可通过 options 覆盖
+      // Styles defined in JS, can be overridden via options
       el.style.position = 'absolute';
       el.style.color = options?.color || '#fff';
       el.style.background = options?.background || 'rgba(0,0,0,0.6)';
       el.style.padding = options?.padding || '4px 8px';
       el.style.borderRadius = options?.borderRadius || '4px';
       el.style.fontSize = options?.fontSize || '14px';
-      el.style.transform = 'translate(-50%, -100%)'; // 让标签在模型正上方
+      el.style.transform = 'translate(-50%, -100%)'; // Position label directly above the model
       el.style.whiteSpace = 'nowrap';
       el.style.pointerEvents = 'none';
       el.style.transition = 'opacity 0.2s ease';
 
-      // 加入容器
+      // Append to container
       container.appendChild(el);
 
-      // 初始化缓存
+      // Initialize cache
       const cachedBox = new THREE.Box3().setFromObject(child);
       const center = new THREE.Vector3();
       cachedBox.getCenter(center);
@@ -123,7 +134,7 @@ export function addChildModelLabels(
   });
 
   /**
-   * 更新缓存的包围盒（仅在模型变换时调用）
+   * Update cached bounding box (called only when model transforms)
    */
   const updateCache = (labelData: LabelData) => {
     labelData.cachedBox.setFromObject(labelData.object);
@@ -134,17 +145,17 @@ export function addChildModelLabels(
   };
 
   /**
-   * 获取对象顶部世界坐标（使用缓存）
+   * Get object top world coordinates (using cache)
    */
   const getObjectTopPosition = (labelData: LabelData): THREE.Vector3 => {
     if (enableCache) {
-      // 检查对象是否发生变换
+      // Check if object has transformed
       if (labelData.needsUpdate || labelData.object.matrixWorldNeedsUpdate) {
         updateCache(labelData);
       }
       return labelData.cachedTopPos;
     } else {
-      // 不使用缓存，每次都重新计算
+      // Do not use cache, recalculate every time
       const box = new THREE.Box3().setFromObject(labelData.object);
       const center = new THREE.Vector3();
       box.getCenter(center);
@@ -153,16 +164,16 @@ export function addChildModelLabels(
   };
 
   /**
-   * 更新标签位置函数
+   * Update label positions function
    */
   function updateLabels(timestamp: number = 0) {
-    // 检查是否暂停
+    // Check pause state
     if (isPaused) {
       rafId = null;
       return;
     }
 
-    // 检查更新间隔
+    // Check update interval
     if (updateInterval > 0 && timestamp - lastUpdateTime < updateInterval) {
       rafId = requestAnimationFrame(updateLabels);
       return;
@@ -174,27 +185,27 @@ export function addChildModelLabels(
 
     labels.forEach((labelData) => {
       const { el } = labelData;
-      const pos = getObjectTopPosition(labelData); // 使用缓存的顶部坐标
-      pos.project(camera); // 转到屏幕坐标
+      const pos = getObjectTopPosition(labelData); // Use cached top position
+      pos.project(camera); // Convert to screen coordinates
 
-      const x = (pos.x * 0.5 + 0.5) * width; // 屏幕 X
-      const y = (-(pos.y * 0.5) + 0.5) * height; // 屏幕 Y
+      const x = (pos.x * 0.5 + 0.5) * width; // Screen X
+      const y = (-(pos.y * 0.5) + 0.5) * height; // Screen Y
 
-      // 控制标签显示/隐藏（摄像机后方隐藏）
+      // Control label visibility (hidden when behind camera)
       const isVisible = pos.z < 1;
       el.style.opacity = isVisible ? '1' : '0';
       el.style.display = isVisible ? 'block' : 'none';
-      el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`; // 屏幕位置
+      el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`; // Screen position
     });
 
-    rafId = requestAnimationFrame(updateLabels); // 循环更新
+    rafId = requestAnimationFrame(updateLabels); // Loop update
   }
 
-  // 启动更新
+  // Start update
   updateLabels();
 
   /**
-   * 暂停更新
+   * Pause updates
    */
   const pause = () => {
     isPaused = true;
@@ -205,7 +216,7 @@ export function addChildModelLabels(
   };
 
   /**
-   * 恢复更新
+   * Resume updates
    */
   const resume = () => {
     if (!isPaused) return;
@@ -214,12 +225,12 @@ export function addChildModelLabels(
   };
 
   /**
-   * 检查是否正在运行
+   * Check if running
    */
   const isRunning = () => !isPaused;
 
   /**
-   * 清理函数：卸载所有 DOM 标签，取消动画，避免内存泄漏
+   * Cleanup function: Remove all DOM labels, cancel animation, avoid memory leaks
    */
   const dispose = () => {
     pause();
