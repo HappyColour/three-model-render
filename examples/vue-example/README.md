@@ -194,7 +194,7 @@ export default defineConfig({
 Then install the package:
 
 ```bash
-pnpm add @chocozhang/three-model-render
+pnpm add @chocozhang/three-model-render@latest
 ```
 
 ---
