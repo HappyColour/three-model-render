@@ -36,7 +36,7 @@ yarn add @chocozhang/three-model-render@latest
 **对等依赖 (Peer Dependencies):**
 请确保你的项目中安装了 `three`:
 ```bash
-npm install three@^0.160.0
+npm install three@^0.181.2
 ```
 
 ---
