@@ -56,17 +56,9 @@ const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerH
 const renderer = new THREE.WebGLRenderer();
 const controls = new OrbitControls(camera, renderer.domElement);
 
-// 2. Configure Global Paths (Optional, defaults to /draco/ and /basis/)
-import { setLoaderConfig } from '@chocozhang/three-model-render/loader';
-setLoaderConfig({
-    dracoDecoderPath: 'https://www.gstatic.com/draco/versioned/decoders/1.5.6/',
-    ktx2TranscoderPath: '/custom/basis/'
-});
-
-// 3. Load Model (Auto-optimizes textures & enables caching)
+// 2. Load Model with Progress
 const model = await loadModelByUrl('path/to/model.glb', {
-    maxTextureSize: 1024, // Reduces large textures to save GPU memory
-    useCache: true        // Enables internal caching
+    manager: new THREE.LoadingManager(() => console.log('Loaded'))
 });
 scene.add(model);
 ```
@@ -77,13 +69,8 @@ Automatically position the camera and setup studio-quality lighting based on the
 ```typescript
 import { autoSetupCameraAndLight } from '@chocozhang/three-model-render/setup';
 
-// Option A: One-click camera and light setup
-autoSetupCameraAndLight(camera, scene, model, { intensity: 1.5 });
-
-// Option B: Flexible Composition (Recommended)
-import { fitCameraToObject, setupDefaultLights } from '@chocozhang/three-model-render/setup';
-fitCameraToObject(camera, model, 1.2); // Just camera
-setupDefaultLights(scene, model, { enableShadows: true }); // Just lights
+// Automatically calculates optimal camera distance and lighting
+autoSetupCameraAndLight(camera, scene, model);
 ```
 
 ### 3. Cinematic Entrance
@@ -191,33 +178,6 @@ setView(camera, controls, model, 'top');
 // Switch to Isometric
 setView(camera, controls, model, 'iso');
 ```
-
-### 8. Resource Management & Memory Cleanup (Crucial)
-Use `ResourceManager` to track and destroy 3D assets, ensuring your app runs smoothly without memory leaks.
-
-```typescript
-import { ResourceManager } from '@chocozhang/three-model-render/core';
-
-const rm = new ResourceManager();
-
-// Track properties of the loaded model
-rm.track(model);
-
-// When component unmounts, release all geometries, materials, and textures
-rm.dispose();
-```
-
----
-
-## 🌐 WebXR Compatibility
-
-This toolkit is designed to be compatible with Three.js WebXR systems:
-- `ResourceManager` handles cleanup for all XR-loaded GPU resources.
-- `autoSetupCameraAndLight` provides bounding sphere data useful for XR teleportation or placement.
-- `loadModelByUrl` generates optimized textures ideal for mobile VR/AR headsets.
-
-> [!NOTE]
-> The interaction layer (`createModelClickHandler`) is currently optimized for mouse/touch. For XR environments, we recommend using controller-based raycasting.
 
 ---
 

@@ -1,8 +1,12 @@
+**three-model-render API Documentation v1.0.4**
+
+***
+
 # three-model-render
 
 > 🚀 专业级 Three.js 模型可视化与交互工具库
 
-[English](./README_EN.md) | 中文
+[English](_media/README_EN.md) | 中文
 
 一个高性能、TypeScript 优先的工具库，提供 14 个经过优化的实用工具，专注于解决 Three.js 模型可视化与交互中的常见问题。
 
@@ -57,17 +61,9 @@ const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerH
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 const controls = new OrbitControls(camera, renderer.domElement);
 
-// 2. 配置全局加载路径 (可选，默认使用本地 /draco/ 和 /basis/)
-import { setLoaderConfig } from '@chocozhang/three-model-render/loader';
-setLoaderConfig({
-    dracoDecoderPath: 'https://www.gstatic.com/draco/versioned/decoders/1.5.6/',
-    ktx2TranscoderPath: '/custom/basis/'
-});
-
-// 3. 加载模型 (自动启用缓存与纹理优化)
+// 2. 加载模型 (支持进度回调)
 const model = await loadModelByUrl('path/to/model.glb', {
-    maxTextureSize: 1024, // 自动缩小大纹理以节省显存
-    useCache: true        // 启用内部缓存，避免重复加载
+    manager: new THREE.LoadingManager(() => console.log('加载完成'))
 });
 scene.add(model);
 ```
@@ -78,16 +74,11 @@ scene.add(model);
 ```typescript
 import { autoSetupCameraAndLight } from '@chocozhang/three-model-render/setup';
 
-// 方式 A: 一键配置相机与灯光
+// 一键配置相机与灯光
 const lightHandles = autoSetupCameraAndLight(camera, scene, model, {
-    enableShadows: true, 
-    intensity: 1.5      
+    enableShadows: true, // 开启阴影
+    intensity: 1.5       // 光照强度
 });
-
-// 方式 B: 灵活组合 (推荐)
-import { fitCameraToObject, setupDefaultLights } from '@chocozhang/three-model-render/setup';
-fitCameraToObject(camera, model, 1.2); // 仅调整相机
-const lights = setupDefaultLights(scene, model, { enableShadows: true }); // 仅添加灯光
 ```
 
 ### 3. 电影级入场动画
@@ -198,33 +189,6 @@ setView(camera, controls, model, 'top');
 // 切换到等轴测视图 (ISO)
 setView(camera, controls, model, 'iso');
 ```
-
-### 8. 资源管理与内存释放 (重要)
-使用 `ResourceManager` 统一追踪并销毁 3D 资源，确保应用长期运行不泄露。
-
-```typescript
-import { ResourceManager } from '@chocozhang/three-model-render/core';
-
-const rm = new ResourceManager();
-
-// 追踪加载出的模型
-rm.track(model);
-
-// 当组件卸载时，一键销毁所有关联的几何体、材质与纹理
-rm.dispose();
-```
-
----
-
-## 🌐 WebXR 兼容性说明
-
-本工具库的所有核心逻辑与 Three.js 的 WebXR 系统保持兼容：
-- `ResourceManager` 支持清理所有 XR 相关的 GPU 资源。
-- `autoSetupCameraAndLight` 计算的包围盒信息可直接用于 XR 传送或布局。
-- `loadModelByUrl` 经过优化的纹理大小非常适合移动端 VR/AR 设备。
-
-> [!NOTE]
-> 交互层 (`createModelClickHandler`) 目前主要针对鼠标与触屏优化。在 XR 环境下，建议结合控制器的射线检测使用。
 
 ---
 
