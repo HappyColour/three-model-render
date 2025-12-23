@@ -56,7 +56,7 @@
         "CHANGELOG.md"
     ],
     "engines": {
-        "node": ">=18.0.0"
+        "node": ">=24.3.0"
     },
     "packageManager": "pnpm@10.26.1",
     "keywords": [
