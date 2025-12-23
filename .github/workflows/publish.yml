@@ -21,12 +21,12 @@ jobs:
     - name: Install pnpm
       uses: pnpm/action-setup@v2
       with:
-        version: 8
+        version: 10
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: 20
+        node-version: 18
         cache: 'pnpm'
         registry-url: 'https://registry.npmjs.org'
 
