@@ -10,6 +10,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+
     steps:
     - uses: actions/checkout@v4
     
@@ -21,17 +25,22 @@ jobs:
     - name: Set node version
       uses: actions/setup-node@v4
       with:
-        node-version: 18
+        node-version: ${{ matrix.node-version }}
         cache: 'pnpm'
 
     - name: Install dependencies
       run: pnpm install
 
+    - name: Security audit
+      run: pnpm audit --audit-level=moderate
+      continue-on-error: true
+
     - name: Type check
       run: pnpm run type-check
 
-    - name: Run tests
-      run: pnpm run test
+    - name: Run tests with coverage
+      run: pnpm run test:coverage
 
     - name: Build
       run: pnpm run build
+

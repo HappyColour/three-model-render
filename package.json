@@ -8,52 +8,57 @@
     "types": "./dist/index.d.ts",
     "exports": {
         ".": {
+            "types": "./dist/index.d.ts",
             "import": "./dist/index.mjs",
-            "require": "./dist/index.js",
-            "types": "./dist/index.d.ts"
+            "require": "./dist/index.js"
         },
         "./core": {
+            "types": "./dist/core/index.d.ts",
             "import": "./dist/core/index.mjs",
-            "require": "./dist/core/index.js",
-            "types": "./dist/core/index.d.ts"
+            "require": "./dist/core/index.js"
         },
         "./interaction": {
+            "types": "./dist/interaction/index.d.ts",
             "import": "./dist/interaction/index.mjs",
-            "require": "./dist/interaction/index.js",
-            "types": "./dist/interaction/index.d.ts"
+            "require": "./dist/interaction/index.js"
         },
         "./camera": {
+            "types": "./dist/camera/index.d.ts",
             "import": "./dist/camera/index.mjs",
-            "require": "./dist/camera/index.js",
-            "types": "./dist/camera/index.d.ts"
+            "require": "./dist/camera/index.js"
         },
         "./loader": {
+            "types": "./dist/loader/index.d.ts",
             "import": "./dist/loader/index.mjs",
-            "require": "./dist/loader/index.js",
-            "types": "./dist/loader/index.d.ts"
+            "require": "./dist/loader/index.js"
         },
         "./ui": {
+            "types": "./dist/ui/index.d.ts",
             "import": "./dist/ui/index.mjs",
-            "require": "./dist/ui/index.js",
-            "types": "./dist/ui/index.d.ts"
+            "require": "./dist/ui/index.js"
         },
         "./effect": {
+            "types": "./dist/effect/index.d.ts",
             "import": "./dist/effect/index.mjs",
-            "require": "./dist/effect/index.js",
-            "types": "./dist/effect/index.d.ts"
+            "require": "./dist/effect/index.js"
         },
         "./setup": {
+            "types": "./dist/setup/index.d.ts",
             "import": "./dist/setup/index.mjs",
-            "require": "./dist/setup/index.js",
-            "types": "./dist/setup/index.d.ts"
+            "require": "./dist/setup/index.js"
         }
     },
     "sideEffects": false,
     "files": [
         "dist",
         "README.md",
-        "LICENSE"
+        "LICENSE",
+        "CHANGELOG.md"
     ],
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "packageManager": "pnpm@10.26.1",
     "keywords": [
         "three",
         "threejs",
@@ -66,7 +71,14 @@
         "camera",
         "loader",
         "typescript",
-        "performance"
+        "performance",
+        "gltf",
+        "glb",
+        "fbx",
+        "obj",
+        "model-viewer",
+        "3d-viewer",
+        "tree-shaking"
     ],
     "author": "Danny Zhang <happyelement.danny@gmail.com>",
     "license": "MIT",
@@ -74,6 +86,10 @@
         "type": "git",
         "url": "https://github.com/HappyColour/three-model-render.git"
     },
+    "bugs": {
+        "url": "https://github.com/HappyColour/three-model-render/issues"
+    },
+    "homepage": "https://happycolour.github.io/",
     "publishConfig": {
         "access": "public"
     },
@@ -85,6 +101,7 @@
         "@rollup/plugin-typescript": "^11.1.5",
         "@types/node": "^25.0.3",
         "@types/three": "^0.160.0",
+        "@vitest/coverage-v8": "^4.0.16",
         "@vitest/ui": "^4.0.16",
         "jsdom": "^27.3.0",
         "rollup": "^4.9.0",
@@ -103,6 +120,7 @@
         "test": "vitest run",
         "test:watch": "vitest",
         "test:ui": "vitest --ui",
+        "test:coverage": "vitest run --coverage",
         "docs": "typedoc"
     }
 }

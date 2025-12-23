@@ -10,7 +10,7 @@
 
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
-import { followModels, FOLLOW_ANGLES, cancelFollow } from './followModels'
+import { followModels, cancelFollow } from './followModels'
 
 /**
  * View types
@@ -71,10 +71,6 @@ export function setView(
       console.warn('setView: Failed to calculate bounding box')
       return Promise.reject(new Error('Invalid bounding box'))
     }
-
-    const center = box.getCenter(new THREE.Vector3())
-    const size = box.getSize(new THREE.Vector3())
-    const maxSize = Math.max(size.x, size.y, size.z)
 
     // Use mapping table for creating view angles
     const viewAngles: Record<ViewPosition, { azimuth: number; elevation: number }> = {

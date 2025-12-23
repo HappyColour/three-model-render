@@ -1,0 +1,48 @@
+# NPM Publish Workflow
+# Automatically publishes to npm when a new release tag is pushed
+
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for provenance
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'pnpm'
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: Install dependencies
+      run: pnpm install
+
+    - name: Type check
+      run: pnpm run type-check
+
+    - name: Run tests
+      run: pnpm run test
+
+    - name: Build
+      run: pnpm run build
+
+    - name: Publish to npm with provenance
+      run: npm publish --provenance --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

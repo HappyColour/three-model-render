@@ -1,13 +1,13 @@
 {
     "compilerOptions": {
-        "target": "ES2015",
+        "target": "ES2020",
         "module": "ESNext",
         "lib": [
-            "ES2015",
-            "ES2017",
+            "ES2020",
             "DOM"
         ],
         "declaration": true,
+        "declarationMap": true,
         "sourceMap": true,
         "outDir": "./dist",
         "rootDir": "./src",
@@ -17,7 +17,9 @@
         "forceConsistentCasingInFileNames": true,
         "moduleResolution": "node",
         "resolveJsonModule": true,
-        "allowSyntheticDefaultImports": true
+        "allowSyntheticDefaultImports": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true
     },
     "include": [
         "src/**/*"

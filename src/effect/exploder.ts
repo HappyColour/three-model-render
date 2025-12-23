@@ -476,7 +476,7 @@ export class GroupExploder {
   }
 
   // material dim with context id
-  private applyDimToOthers(explodingMeshes: THREE.Mesh[], opacity = 0.25, opts?: { debug?: boolean }) {
+  private applyDimToOthers(explodingMeshes: THREE.Mesh[], opacity = 0.25, _opts?: { debug?: boolean }) {
     const contextId = `ctx_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const explodingSet = new Set(explodingMeshes);
     const touched = new Set<THREE.Material>();
@@ -519,7 +519,7 @@ export class GroupExploder {
   }
 
   // clean contexts for meshes (restore materials whose contexts are removed)
-  private cleanContextsForMeshes(meshes: THREE.Mesh[]) {
+  private cleanContextsForMeshes(_meshes: THREE.Mesh[]) {
     // conservative strategy: for each context we created, delete it and restore materials accordingly
     for (const [contextId, mats] of Array.from(this.contextMaterials.entries())) {
       mats.forEach((mat) => {

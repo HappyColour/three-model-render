@@ -5,7 +5,7 @@ import { loadModelByUrl } from './modelLoader'
 // Mock GLTFLoader
 vi.mock('three/examples/jsm/loaders/GLTFLoader.js', () => ({
     GLTFLoader: class {
-        load(url: string, onLoad: any) {
+        load(_url: string, onLoad: any) {
             onLoad({ scene: new THREE.Group() })
         }
         setDRACOLoader() { }
