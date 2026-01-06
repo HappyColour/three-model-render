@@ -1,9 +1,13 @@
 <template>
     <div id="three-model-render">
         <div ref="containerRef" class="three-container" />
+        <div id="liquidFiller">
+            <button v-if="!fillerStatus" @click="filler">LIQUID</button>
+            <button v-else @click="liquidRestore">RESTORE</button>
+        </div>
         <div id="explode">
             <button v-if="!exploded" @click="explosion">EXPLODE</button>
-            <button v-else @click="restore">RESTORE</button>
+            <button v-else @click="explodeRestore">RESTORE</button>
         </div>
         <div id="setView">
             <select v-model="selectedView" @change="changeView" class="view-select">
@@ -15,7 +19,6 @@
                 <option value="iso">ISO</option>
             </select>
         </div>
-
         <Transition name="modal">
             <div v-show="modalShow" class="modal-overlay" @click.self="modalShow = false">
                 <div class="modal-card">
@@ -59,6 +62,7 @@ import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer'
 import { createModelClickHandler } from '@chocozhang/three-model-render';
 import { GroupExploder } from '@chocozhang/three-model-render/effect'
+import { LiquidFillerGroup } from '@chocozhang/three-model-render/interaction'
 
 const containerRef = ref<HTMLDivElement | null>(null)
 let scene!: THREE.Scene
@@ -79,6 +83,9 @@ const modalContent = ref<any>('')
 let exploder!: GroupExploder
 let explosionTargets = new Set<THREE.Mesh>()
 let exploded = ref(false)
+let fillerStatus = ref(false)
+let fillerGroup!: LiquidFillerGroup
+let fillerTargets = new Set<THREE.Mesh>()
 let animationId: number | any
 
 onMounted(() => {
@@ -140,6 +147,9 @@ async function initLoadModel(modelUrl: string) {
             }
             if(mesh.name === 'Ladder_1_metalpattern001_0') {
                 explosionTargets.add(mesh)
+            }
+            if(mesh.name === 'cactus2_1_cactus001_0') {
+                fillerTargets.add(mesh)
             }
         }
     })
@@ -206,11 +216,29 @@ function explosion() {
     exploder.explode({ mode: 'grid', spacing: 2.8, duration: 1100, lift: 1.2, cameraPadding: 0.8, dimOthers: { enabled: true, opacity: 0.1 } })
 }
 
-function restore() {
+function explodeRestore() {
     exploded.value = false
     exploder.restore(600)
 }
 
+function liquidRestore() {
+    fillerStatus.value = false
+    fillerGroup.restoreAll()
+}
+
+function filler() {
+    fillerStatus.value = true
+    followModels(camera, Array.from(fillerTargets)[0], {
+        duration: 500,
+        padding: 0.8,
+        controls,
+    })
+    if (fillerGroup) {
+        fillerGroup.dispose()
+    }
+    fillerGroup = new LiquidFillerGroup(fillerTargets, scene, camera, renderer, { color: 0x00ff00, opacity: 0.5, speed: 0.01 }, 10)
+    fillerGroup.fillTo(fillerTargets, 0.8)
+}
 onBeforeUnmount(() => {
     disposeObject(model)
     disposeClickHandler && disposeClickHandler()
@@ -283,6 +311,12 @@ onBeforeUnmount(() => {
 	display: block;
 	overflow: hidden;
 }
+#liquidFiller{
+    position: fixed;
+    top: 20px;
+    right: 220px;
+    z-index: 1;
+}
 #setView{
     position: fixed;
     top: 20px;
@@ -294,6 +328,17 @@ onBeforeUnmount(() => {
     top: 20px;
     right: 120px;
     z-index: 1;
+}
+#liquidFiller button{
+    padding: 10px;
+    outline: none;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    color: white;
+    width: 85px;
+    backdrop-filter: blur(10px);
+    cursor: pointer;    
 }
 #explode button{
     padding: 10px;
