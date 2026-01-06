@@ -27,11 +27,14 @@ interface LiquidItem {
   animationId: number | null  // Track animation ID for each model
 }
 
+export type LiquidModelInput = THREE.Object3D | THREE.Object3D[] | Iterable<THREE.Object3D>;
+
 /**
  * LiquidFillerGroup - Optimized
  * Supports single or multi-model liquid level animation with independent color control.
  *
- * Features:
+ * Capabilities:
+ * - Supports THREE.Object3D, Array<THREE.Object3D>, Set<THREE.Object3D> etc.
  * - Uses renderer.domElement instead of window events
  * - Uses AbortController to manage event lifecycle
  * - Adds error handling and boundary checks
@@ -50,7 +53,7 @@ export class LiquidFillerGroup {
 
   /**
    * Constructor
-   * @param models Single or multiple THREE.Object3D
+   * @param models Single or multiple THREE.Object3D (Array, Set, etc.)
    * @param scene Scene
    * @param camera Camera
    * @param renderer Renderer
@@ -58,7 +61,7 @@ export class LiquidFillerGroup {
    * @param clickThreshold Click threshold in pixels
    */
   constructor(
-    models: THREE.Object3D | THREE.Object3D[],
+    models: LiquidModelInput,
     scene: THREE.Scene,
     camera: THREE.Camera,
     renderer: THREE.WebGLRenderer,
@@ -73,7 +76,7 @@ export class LiquidFillerGroup {
     // Create AbortController for event management
     this.abortController = new AbortController()
 
-    const modelArray = Array.isArray(models) ? models : [models]
+    const modelArray = this.normalizeInput(models)
 
     modelArray.forEach(model => {
       try {
@@ -167,6 +170,20 @@ export class LiquidFillerGroup {
     this.renderer.domElement.addEventListener('pointerup', this.handlePointerUp, { signal })
   }
 
+  /**
+   * Helper to normalize input to Array<THREE.Object3D>
+   */
+  private normalizeInput(models: LiquidModelInput): THREE.Object3D[] {
+    if (models instanceof THREE.Object3D) {
+      return [models]
+    }
+    if (Array.isArray(models)) {
+      return models
+    }
+    // Handle Iterable (Set, etc.)
+    return Array.from(models as Iterable<THREE.Object3D>)
+  }
+
   /** pointerdown record position */
   private handlePointerDown = (event: PointerEvent) => {
     this.pointerDownPos.set(event.clientX, event.clientY)
@@ -199,17 +216,17 @@ export class LiquidFillerGroup {
 
   /**
    * Set liquid level
-   * @param models Single model or array of models
+   * @param models Single model or array/iterable of models
    * @param percent Liquid level percentage 0~1
    */
-  public fillTo(models: THREE.Object3D | THREE.Object3D[], percent: number) {
+  public fillTo(models: LiquidModelInput, percent: number) {
     // Boundary check
     if (percent < 0 || percent > 1) {
       console.warn('LiquidFillerGroup: percent must be between 0 and 1', percent)
       percent = Math.max(0, Math.min(1, percent))
     }
 
-    const modelArray = Array.isArray(models) ? models : [models]
+    const modelArray = this.normalizeInput(models)
 
     modelArray.forEach(model => {
       const item = this.items.find(i => i.model === model)
