@@ -245,6 +245,7 @@ onBeforeUnmount(() => {
 	hoverController?.dispose()
     exploder?.dispose()
     ppManager?.dispose()
+    fillerGroup?.dispose()
     if (animationId != null) {
 		cancelAnimationFrame(animationId)
 		animationId = null
