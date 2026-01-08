@@ -98,7 +98,7 @@ export function createModelClickHandler(
   }
 
   /** Highlight object: Update OutlinePass.selectedObjects and adjust outline thickness */
-  function highlightObject(obj: THREE.Object3D) {
+  function _highlightObject(obj: THREE.Object3D) {
     const meshes = getMeshes(obj);
     outlinePass.selectedObjects = meshes;
 
@@ -116,6 +116,9 @@ export function createModelClickHandler(
   function restoreObject() {
     outlinePass.selectedObjects = [];
   }
+
+  // _highlightObject is available for optional use (see processClick)
+  void _highlightObject;
 
   /** Record mouse down position */
   function handleMouseDown(event: MouseEvent) {

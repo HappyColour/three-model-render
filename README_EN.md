@@ -83,8 +83,17 @@ function animate() {
 ```typescript
 import { loadModelByUrl } from '@chocozhang/three-model-render';
 
+// 2. Configure Global Paths (Optional, defaults to /draco/ and /basis/)
+import { setLoaderConfig } from '@chocozhang/three-model-render/loader';
+setLoaderConfig({
+    dracoDecoderPath: 'https://www.gstatic.com/draco/versioned/decoders/1.5.6/',
+    ktx2TranscoderPath: '/custom/basis/'
+});
+
+// 3. Load Model (Auto-optimizes textures & enables caching)
 const model = await loadModelByUrl('path/to/model.glb', {
-    manager: new THREE.LoadingManager(() => console.log('Loaded'))
+    maxTextureSize: 1024, // Reduces large textures to save GPU memory
+    useCache: true        // Enables internal caching
 });
 scene.add(model);
 ```
@@ -93,8 +102,13 @@ scene.add(model);
 ```typescript
 import { autoSetupCameraAndLight } from '@chocozhang/three-model-render/setup';
 
-// Single call for studio-grade lighting and optimal camera framing
-autoSetupCameraAndLight(camera, scene, model);
+// Option A: One-click camera and light setup
+autoSetupCameraAndLight(camera, scene, model, { intensity: 1.5 });
+
+// Option B: Flexible Composition (Recommended)
+import { fitCameraToObject, setupDefaultLights } from '@chocozhang/three-model-render/setup';
+fitCameraToObject(camera, model, 1.2); // Just camera
+setupDefaultLights(scene, model, { enableShadows: true }); // Just lights
 ```
 
 ### 3. Unified Labeling
@@ -237,30 +251,34 @@ filler.fillTo(targetMeshes, 0.8)  // Fill to 80%
 // filler.restoreAll()  // Restore original state
 ```
 
-### Model Explosion & Disassembly
+### 8. Resource Management & Memory Cleanup (Crucial)
+Use `ResourceManager` to track and destroy 3D assets, ensuring your app runs smoothly without memory leaks.
+
 ```typescript
-import { GroupExploder } from '@chocozhang/three-model-render/effect'
+import { ResourceManager } from '@chocozhang/three-model-render/core';
 
-const exploder = new GroupExploder(scene, camera, controls)
-exploder.init()
+const rm = new ResourceManager();
 
-const parts = new Set()
-model.traverse(child => {
-  if (child.name.includes('component')) parts.add(child)
-})
+// Track properties of the loaded model
+rm.track(model);
 
-exploder.setMeshes(parts, { autoRestorePrev: true })
-exploder.explode({
-  mode: 'grid',
-  spacing: 2.8,
-  duration: 1100,
-  lift: 1.2,
-  cameraPadding: 0.8,
-  dimOthers: { enabled: true, opacity: 0.1 }
-})
-
-// exploder.restore(600)  // 600ms restore animation
+// When component unmounts, release all geometries, materials, and textures
+rm.dispose();
 ```
+
+---
+
+## 🌐 WebXR Compatibility
+
+This toolkit is designed to be compatible with Three.js WebXR systems:
+- `ResourceManager` handles cleanup for all XR-loaded GPU resources.
+- `autoSetupCameraAndLight` provides bounding sphere data useful for XR teleportation or placement.
+- `loadModelByUrl` generates optimized textures ideal for mobile VR/AR headsets.
+
+> [!NOTE]
+> The interaction layer (`createModelClickHandler`) is currently optimized for mouse/touch. For XR environments, we recommend using controller-based raycasting.
+
+---
 
 ### Professional Labeling System
 ```typescript

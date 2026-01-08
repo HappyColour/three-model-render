@@ -10,6 +10,7 @@
  */
 
 import * as THREE from 'three'
+import { getLoaderConfig } from './config'
 
 type LoaderLike = {
   load: (url: string,
@@ -30,6 +31,8 @@ export interface LoadOptions {
   maxTextureSize?: number | null
   useSimpleMaterials?: boolean
   skipSkinned?: boolean
+  /** Whether to cache the model (default true) */
+  useCache?: boolean
 }
 
 const DEFAULT_OPTIONS: Required<Omit<LoadOptions, 'manager' | 'dracoDecoderPath' | 'ktx2TranscoderPath'>> = {
@@ -38,7 +41,10 @@ const DEFAULT_OPTIONS: Required<Omit<LoadOptions, 'manager' | 'dracoDecoderPath'
   maxTextureSize: null,
   useSimpleMaterials: false,
   skipSkinned: true,
+  useCache: true,
 }
+
+const modelCache = new Map<string, THREE.Object3D>()
 
 /** Automatically determine which options to enable based on extension (smart judgment) */
 function normalizeOptions(url: string, opts: LoadOptions): LoadOptions {
@@ -46,10 +52,11 @@ function normalizeOptions(url: string, opts: LoadOptions): LoadOptions {
   const merged: LoadOptions = { ...DEFAULT_OPTIONS, ...opts }
 
   if (ext === 'gltf' || ext === 'glb') {
+    const globalConfig = getLoaderConfig()
     // gltf/glb defaults to trying draco/ktx2 if user didn't specify
-    if (merged.dracoDecoderPath === undefined) merged.dracoDecoderPath = '/draco/'
+    if (merged.dracoDecoderPath === undefined) merged.dracoDecoderPath = globalConfig.dracoDecoderPath
     if (merged.useKTX2 === undefined) merged.useKTX2 = true
-    if (merged.ktx2TranscoderPath === undefined) merged.ktx2TranscoderPath = '/basis/'
+    if (merged.ktx2TranscoderPath === undefined) merged.ktx2TranscoderPath = globalConfig.ktx2TranscoderPath
   } else {
     // fbx/obj/ply/stl etc. do not need draco/ktx2
     merged.dracoDecoderPath = null
@@ -69,6 +76,13 @@ export async function loadModelByUrl(
   const ext = (url.split('.').pop() || '').toLowerCase()
   const opts = normalizeOptions(url, options)
   const manager = opts.manager ?? new THREE.LoadingManager()
+
+  // Cache key includes URL and relevant optimization options
+  const cacheKey = `${url}_${opts.mergeGeometries}_${opts.maxTextureSize}_${opts.useSimpleMaterials}`
+
+  if (opts.useCache && modelCache.has(cacheKey)) {
+    return modelCache.get(cacheKey)!.clone()
+  }
 
   let loader: LoaderLike
   if (ext === 'gltf' || ext === 'glb') {
@@ -138,7 +152,7 @@ export async function loadModelByUrl(
     }
   })
 
-  if (opts.maxTextureSize && opts.maxTextureSize > 0) downscaleTexturesInObject(object, opts.maxTextureSize)
+  if (opts.maxTextureSize && opts.maxTextureSize > 0) await downscaleTexturesInObject(object, opts.maxTextureSize)
   if (opts.useSimpleMaterials) {
     object.traverse((child) => {
       const m = (child as any).material
@@ -156,17 +170,25 @@ export async function loadModelByUrl(
     }
   }
 
+  if (opts.useCache) {
+    modelCache.set(cacheKey, object)
+    return object.clone()
+  }
+
   return object
 }
 
-/** Runtime downscale textures in mesh to maxSize (canvas drawImage) to save GPU memory */
-function downscaleTexturesInObject(obj: THREE.Object3D, maxSize: number) {
+/** Runtime downscale textures in mesh to maxSize (createImageBitmap or canvas) to save GPU memory */
+async function downscaleTexturesInObject(obj: THREE.Object3D, maxSize: number) {
+  const tasks: Promise<void>[] = []
+
   obj.traverse((ch) => {
     if (!(ch as any).isMesh) return
     const mesh = ch as THREE.Mesh
     const mat = mesh.material as any
     if (!mat) return
     const props = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap']
+
     props.forEach((p) => {
       const tex = mat[p] as THREE.Texture | undefined
       if (!tex || !tex.image) return
@@ -174,26 +196,47 @@ function downscaleTexturesInObject(obj: THREE.Object3D, maxSize: number) {
       if (!image.width || !image.height) return
       const max = maxSize
       if (image.width <= max && image.height <= max) return
-      // downscale using canvas (sync, may be heavy for many textures)
-      try {
-        const scale = Math.min(max / image.width, max / image.height)
-        const canvas = document.createElement('canvas')
-        canvas.width = Math.floor(image.width * scale)
-        canvas.height = Math.floor(image.height * scale)
-        const ctx = canvas.getContext('2d')
-        if (ctx) {
-          ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
-          const newTex = new THREE.Texture(canvas)
-          newTex.needsUpdate = true
-          // copy common settings (encoding etc)
-          newTex.encoding = tex.encoding
-          mat[p] = newTex
+
+      tasks.push((async () => {
+        try {
+          const scale = Math.min(max / image.width, max / image.height)
+          const newWidth = Math.floor(image.width * scale)
+          const newHeight = Math.floor(image.height * scale)
+
+          let newSource: any
+
+          if (typeof createImageBitmap !== 'undefined') {
+            newSource = await createImageBitmap(image, {
+              resizeWidth: newWidth,
+              resizeHeight: newHeight,
+              resizeQuality: 'high'
+            })
+          } else {
+            // Fallback for environments without createImageBitmap
+            const canvas = document.createElement('canvas')
+            canvas.width = newWidth
+            canvas.height = newHeight
+            const ctx = canvas.getContext('2d')
+            if (ctx) {
+              ctx.drawImage(image, 0, 0, newWidth, newHeight)
+              newSource = canvas
+            }
+          }
+
+          if (newSource) {
+            const newTex = new THREE.Texture(newSource)
+            newTex.needsUpdate = true
+            newTex.encoding = tex.encoding
+            mat[p] = newTex
+          }
+        } catch (e) {
+          console.warn('downscale texture failed', e)
         }
-      } catch (e) {
-        console.warn('downscale texture failed', e)
-      }
+      })())
     })
   })
+
+  await Promise.all(tasks)
 }
 
 /**

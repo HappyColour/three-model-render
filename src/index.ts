@@ -26,5 +26,5 @@ export * from './effect'
 // Setup utilities
 export * from './setup'
 
-// Version
-export const VERSION = '1.0.0'
+// Version (keep in sync with package.json)
+export const VERSION = '1.0.4'

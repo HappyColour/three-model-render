@@ -2,3 +2,4 @@
 export * from './modelLoader'
 export * from './skyboxLoader'
 export * from './blueSkyManager'
+export * from './config'

@@ -1,0 +1,12 @@
+{
+    "entryPoints": [
+        "src/index.ts"
+    ],
+    "out": "docs",
+    "plugin": [
+        "typedoc-plugin-markdown"
+    ],
+    "hideGenerator": true,
+    "name": "three-model-render API Documentation",
+    "includeVersion": true
+}

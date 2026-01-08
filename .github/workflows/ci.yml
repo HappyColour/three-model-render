@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [24]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 10
+
+    - name: Set node version
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'pnpm'
+
+    - name: Install dependencies
+      run: pnpm install
+
+    - name: Security audit
+      run: pnpm audit --audit-level=moderate
+      continue-on-error: true
+
+    - name: Type check
+      run: pnpm run type-check
+
+    - name: Run tests with coverage
+      run: pnpm run test:coverage
+
+    - name: Build
+      run: pnpm run build
+
