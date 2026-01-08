@@ -3,3 +3,4 @@
 export * from './hoverEffect'
 export * from './postProcessing'
 export * from './objectPool'
+export * from './resourceManager'
