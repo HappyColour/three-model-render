@@ -1,2 +1,3 @@
-// UI utilities - Model labels with connection lines
+// UI utilities - Labels and performance monitoring
 export * from './modelsLabel'
+export * from './performanceStats'

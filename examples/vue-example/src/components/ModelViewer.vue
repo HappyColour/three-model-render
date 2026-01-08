@@ -63,6 +63,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { createModelClickHandler } from '@chocozhang/three-model-render';
 import { GroupExploder } from '@chocozhang/three-model-render/effect'
 import { LiquidFillerGroup } from '@chocozhang/three-model-render/interaction'
+import { createModelsLabel, createPerformanceMonitor } from '@chocozhang/three-model-render/ui';
 
 const containerRef = ref<HTMLDivElement | null>(null)
 let scene!: THREE.Scene
@@ -87,6 +88,16 @@ let fillerStatus = ref(false)
 let fillerGroup!: LiquidFillerGroup
 let fillerTargets = new Set<THREE.Mesh>()
 let animationId: number | any
+let labelManager: ReturnType<typeof createModelsLabel>
+let modelLabelsMap: Record<string, string> = {
+    'roof_structureroof001_0': 'roof',
+    'Treehouse_redpanel001_0': 'Treehouse',
+    'Tree_loglowres001_0': 'Tree',
+    'claytable_2_tableclay001_0': 'Table',
+    'bush2_bush2001_0': 'bush',
+}
+// v3.0 Performance Monitor
+let perfMonitor: ReturnType<typeof createPerformanceMonitor>
 
 onMounted(() => {
     initScene()
@@ -97,6 +108,7 @@ onMounted(() => {
     initHoverBreath()
     initClickHandler()
     initGroupExploder()
+    initPerformanceMonitor()
     animate()
 })
 
@@ -132,10 +144,11 @@ async function initLoadModel(modelUrl: string) {
     followModels(camera, model, {
         ...FOLLOW_ANGLES.FRONT, // default ISOMETRIC
         duration: 1500,
-        padding: 0.6,
+        padding: 0.5,
         controls,
         easing: 'easeInOut'
     })
+    initLabels(model)
     model.traverse((child) => {
         if (child instanceof THREE.Mesh) {
             const mesh = child as THREE.Mesh
@@ -160,6 +173,8 @@ function animate() {
     controls?.update()
     renderer.render(scene, camera)
     composer?.render()
+    // Update performance monitor (v3.0 optimization)
+    perfMonitor?.update()
 }
 
 function changeView() {
@@ -239,6 +254,27 @@ function filler() {
     fillerGroup = new LiquidFillerGroup(fillerTargets, scene, camera, renderer, { color: 0x00ff00, opacity: 0.5, speed: 0.01 }, 10)
     fillerGroup.fillTo(fillerTargets, 0.8)
 }
+
+function initLabels(model: THREE.Object3D) {
+    labelManager = createModelsLabel(camera, renderer, model, modelLabelsMap, {
+        style: 'line',
+        lift: 120,
+        enableOcclusionDetection: true
+    })
+}
+
+function initPerformanceMonitor() {
+    perfMonitor = createPerformanceMonitor({
+        position: 'top-left',
+        renderer: renderer,
+        updateInterval: 500,
+        enableMemoryTracking: true,
+        enableWarnings: true,
+        fpsWarningThreshold: 30,
+        memoryWarningThreshold: 200
+    })
+}
+
 onBeforeUnmount(() => {
     disposeObject(model)
     disposeClickHandler && disposeClickHandler()
@@ -246,6 +282,8 @@ onBeforeUnmount(() => {
     exploder?.dispose()
     ppManager?.dispose()
     fillerGroup?.dispose()
+    labelManager?.dispose()
+    perfMonitor?.dispose() // Clean up performance monitor
     if (animationId != null) {
 		cancelAnimationFrame(animationId)
 		animationId = null
