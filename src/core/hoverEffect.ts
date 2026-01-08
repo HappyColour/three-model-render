@@ -12,17 +12,35 @@
 import * as THREE from 'three'
 import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass'
 
+/**
+ * Configuration options for the hover breathing effect.
+ */
 export type HoverBreathOptions = {
+  /** The camera used for raycasting. */
   camera: THREE.Camera
+  /** The scene containing objects to be tested for hover. */
   scene: THREE.Scene
+  /** The renderer used to get the drawing surface dimensions. */
   renderer: THREE.WebGLRenderer
+  /** The OutlinePass instance to which the hovered object will be added. */
   outlinePass: OutlinePass
-  // highlightNames: null => All objects highlightable; [] => No objects highlightable; ['A','B'] => Only specified names
+  /** 
+   * Array of object names that are allowed to trigger the highlight. 
+   * null: all objects highlightable; 
+   * []: no objects highlightable; 
+   * ['A','B']: only specified names.
+   */
   highlightNames?: string[] | null
+  /** Minimum edge strength of the breathing effect. */
   minStrength?: number
+  /** Maximum edge strength of the breathing effect. */
   maxStrength?: number
+  /** Speed of the breathing animation. */
   speed?: number
-  throttleDelay?: number // mousemove throttle delay (ms), default 16ms (~60fps)
+  /** Throttling delay for mousemove events in milliseconds. Default is 16ms (~60fps). */
+  throttleDelay?: number
+  /** Whether to enable frustum culling to skip raycasting for off-screen objects. Default is true. */
+  enableFrustumCulling?: boolean
 }
 
 /**
@@ -45,6 +63,7 @@ export function enableHoverBreath(opts: HoverBreathOptions) {
     maxStrength = 5,
     speed = 4,
     throttleDelay = 16, // Default ~60fps
+    enableFrustumCulling = true, // Enable by default
   } = opts
 
   const raycaster = new THREE.Raycaster()
@@ -59,6 +78,20 @@ export function enableHoverBreath(opts: HoverBreathOptions) {
   let lastMoveTime = 0
   let rafPending = false
 
+  // Frustum for culling
+  const frustum = new THREE.Frustum()
+  const projScreenMatrix = new THREE.Matrix4()
+
+  // Cache for visible objects
+  let visibleObjects: THREE.Object3D[] = []
+  let lastFrustumUpdate = 0
+  const frustumUpdateInterval = 100 // Update frustum every 100ms
+
+  /**
+   * Dynamically updates the list of highlightable object names.
+   * If the current hovered object is no longer allowed, it will be unselected immediately.
+   * @param {string[] | null} names - The new list of names or null for all.
+   */
   function setHighlightNames(names: string[] | null) {
     highlightSet = names === null ? null : new Set(names)
     // If current hovered object is not in the new list, clean up selection immediately
@@ -97,7 +130,52 @@ export function enableHoverBreath(opts: HoverBreathOptions) {
   }
 
   /**
-   * Actual mousemove logic
+   * Update visible objects cache using frustum culling
+   */
+  function updateVisibleObjects() {
+    const now = performance.now()
+    if (now - lastFrustumUpdate < frustumUpdateInterval) {
+      return // Use cached results
+    }
+    lastFrustumUpdate = now
+
+    // Update frustum from camera
+    camera.updateMatrixWorld()
+    projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+    frustum.setFromProjectionMatrix(projScreenMatrix)
+
+    // Filter visible objects
+    visibleObjects = []
+    scene.traverse((obj) => {
+      // Type-safe check for Mesh objects
+      const isMesh = (obj as any).isMesh === true
+      const isGroup = (obj as any).isGroup === true
+
+      if (isMesh || isGroup) {
+        const mesh = obj as THREE.Mesh
+        // Quick bounding sphere check
+        if (mesh.geometry && (mesh.geometry as any).boundingSphere) {
+          const geom = mesh.geometry as THREE.BufferGeometry
+          if (!geom.boundingSphere || !geom.boundingSphere.center) {
+            geom.computeBoundingSphere()
+          }
+          if (geom.boundingSphere) {
+            const sphere = geom.boundingSphere.clone()
+            sphere.applyMatrix4(obj.matrixWorld)
+            if (frustum.intersectsSphere(sphere)) {
+              visibleObjects.push(obj)
+            }
+          }
+        } else {
+          // If no bounding sphere, include by default
+          visibleObjects.push(obj)
+        }
+      }
+    })
+  }
+
+  /**
+   * Actual mousemove logic (optimized with frustum culling)
    */
   function processMouseMove(ev: MouseEvent) {
     const rect = renderer.domElement.getBoundingClientRect()
@@ -105,8 +183,18 @@ export function enableHoverBreath(opts: HoverBreathOptions) {
     mouse.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1
 
     raycaster.setFromCamera(mouse, camera)
-    // Deep detect all children of the scene (true)
-    const intersects = raycaster.intersectObjects(scene.children, true)
+
+    // Use frustum culling to reduce raycasting load
+    let targets: THREE.Object3D[]
+    if (enableFrustumCulling) {
+      updateVisibleObjects()
+      targets = visibleObjects
+    } else {
+      targets = scene.children
+    }
+
+    // Only raycast against visible objects
+    const intersects = raycaster.intersectObjects(targets, true)
 
     if (intersects.length > 0) {
       const obj = intersects[0].object
@@ -183,6 +271,10 @@ export function enableHoverBreath(opts: HoverBreathOptions) {
     return hovered ? hovered.name : null
   }
 
+  /**
+   * Cleans up event listeners and cancels active animations.
+   * Should be called when the component or view is destroyed.
+   */
   function dispose() {
     renderer.domElement.removeEventListener('mousemove', onMouseMove)
     if (animationId) {

@@ -1,6 +1,6 @@
 {
     "name": "@chocozhang/three-model-render",
-    "version": "1.0.5",
+    "version": "2.0.0",
     "type": "module",
     "description": "Professional Three.js model visualization and interaction toolkit with 14 high-performance utilities",
     "main": "./dist/index.js",

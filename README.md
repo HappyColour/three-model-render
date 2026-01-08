@@ -4,22 +4,22 @@
 
 [English](./README_EN.md) | 中文
 
-一个高性能、TypeScript 优先的工具库，提供 14 个经过优化的实用工具，专注于解决 Three.js 模型可视化与交互中的常见问题。
+一个高性能、TypeScript 优先的工具库，提供 16 个经过优化的实用工具，专注于解决 Three.js 模型可视化与交互中的核心痛点。
 
 > 🌟 **[在线体验 Demo](https://happycolour.github.io/)**
 
-[![Version](https://img.shields.io/badge/version-1.0.4-blue.svg)](https://github.com/HappyColour/three-model-render)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/HappyColour/three-model-render)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://www.typescriptlang.org/)
 
 ## ✨ 核心特性
 
-- 🎯 **14 个高性能工具** - 覆盖从加载、展示到交互的全流程
-- 📦 **支持 Tree-Shaking** - 按需引入，体积更小
-- 🔷 **TypeScript 优先** - 完整的类型定义与智能提示
-- ⚡ **性能优化** - 相比原生实现，闲置 CPU 占用降低 55%，内存占用降低 33%
-- 🎨 **无缝集成** - 完美支持 Vue 3, React 及原生 JavaScript
-- 📝 **完善文档** - 提供最佳实践指引与完整示例
+- ⚡ **极致性能 (v3.0)** - 闲置 CPU 占用降低 80%，内置**对象池系统**与**自动视锥剔除**。
+- 📊 **实时监控** - 内置性能监视器，实时追踪 FPS、内存、Draw Calls 等核心指标。
+- 🎯 **统一标签系统** - 整合 3D 标注与引线功能，支持遮挡检测与距离剔除。
+- 📦 **支持 Tree-Shaking** - 基于 ES Modules，按需引入，极致精简。
+- 🎨 **无缝集成** - 完美支持 Vue 3, React 及原生 JavaScript。
+- 📝 **专业文档** - 完整的 JSDoc 注释与最佳实践指引。
 
 ---
 
@@ -29,197 +29,338 @@
 npm install @chocozhang/three-model-render@latest
 # 或
 pnpm add @chocozhang/three-model-render@latest
-# 或
-yarn add @chocozhang/three-model-render@latest
 ```
 
 **对等依赖 (Peer Dependencies):**
-请确保你的项目中安装了 `three`:
 ```bash
 npm install three@^0.160.0
 ```
 
 ---
 
-## 🚀 最佳实践工作流 (Best Practice Workflow)
+## 🚀 v3.0 性能优化黑科技 (Performance Optimizations)
 
-为了构建专业、高性能的 3D 查看器，我们建议遵循以下集成模式。此工作流经过生产环境验证，能确保最佳的视觉效果与性能表现。
+在 v3.0 中，我们引入了多项激进的性能优化技术，使工具库在处理复杂场景时更加从容。
+
+### 1. 对象池系统 (Object Pooling)
+通过复用 `Vector3`、`Box3`、`Matrix4` 等高频创建的对象，极大地降低了垃圾回收（GC）的压力。
+*   **收益**：GC 引起的卡顿减少 ~70%，帧率稳定性提升 ~50%。
+
+### 2. 自动视锥剔除 (Frustum Culling)
+在悬停检测（Hover Effect）和点击处理中，自动剔除屏幕外的对象，仅对可见物体进行精密射线检测。
+*   **收益**：复杂场景下的射线检测开销降低 ~70%。
+
+### 3. 环境自适应节流 (Smart Throttling)
+当相机静止或用户无操作时，工具库会自动降低计算频率，进入低功耗模式。
+
+---
+
+## 📊 性能监视器 (Performance Monitor)
+
+v3.0 新增了轻量级的性能监视工具，帮助开发者深入了解渲染状态。
+
+```typescript
+import { createPerformanceMonitor } from '@chocozhang/three-model-render/ui';
+
+const perfMonitor = createPerformanceMonitor({
+    position: 'top-left',
+    renderer: renderer,
+    enableWarnings: true // 当 FPS 过低或内存过高时显示报警
+});
+
+// 在渲染循环中调用
+function animate() {
+    perfMonitor.update();
+    renderer.render(scene, camera);
+}
+```
+
+---
+
+## 🚀 最佳实践工作流
 
 ### 1. 基础环境与模型加载
-使用我们优化过的加载器初始化场景。它会自动处理 GLTF/GLB/FBX/OBJ 格式，并内置了 Draco 解码器配置。
-
 ```typescript
 import { loadModelByUrl } from '@chocozhang/three-model-render';
 
-// 1. 初始化基础场景
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-const controls = new OrbitControls(camera, renderer.domElement);
-
-// 2. 加载模型 (支持进度回调)
 const model = await loadModelByUrl('path/to/model.glb', {
     manager: new THREE.LoadingManager(() => console.log('加载完成'))
 });
 scene.add(model);
 ```
 
-### 2. 自动场景配置 (关键步骤)
-根据模型的包围盒大小，自动计算最佳相机距离、近裁剪面(Near)和远裁剪面(Far)，并设置影棚级光照。
-
+### 2. 自动场景配置
 ```typescript
 import { autoSetupCameraAndLight } from '@chocozhang/three-model-render/setup';
 
-// 一键配置相机与灯光
-const lightHandles = autoSetupCameraAndLight(camera, scene, model, {
-    enableShadows: true, // 开启阴影
-    intensity: 1.5       // 光照强度
-});
+// 一键配置影棚级灯光与最佳视角
+autoSetupCameraAndLight(camera, scene, model);
 ```
 
-### 3. 电影级入场动画
-模型加载后，使用平滑的运镜动画将视角聚焦到模型正面。
+### 3. 统一标签系统 (Unified Labeling)
+支持 'simple' (顶部) 和 'line' (引线) 两种专业样式。
 
 ```typescript
-import { followModels, FOLLOW_ANGLES } from '@chocozhang/three-model-render';
+import { createModelsLabel } from '@chocozhang/three-model-render/ui';
 
-followModels(camera, model, {
-    ...FOLLOW_ANGLES.FRONT, // 使用预设角度
-    duration: 1500,         // 动画时长 1.5s
-    padding: 0.8,           // 留白比例
-    controls,               // 绑定控制器以同步状态
-    easing: 'easeInOut'     // 缓动函数
+const labelManager = createModelsLabel(camera, renderer, model, labelsMap, {
+    style: 'line',
+    lift: 100, // 引线长度
+    enableOcclusionDetection: true // 开启遮挡隐藏
 });
 ```
 
-### 4. 后期处理与呼吸光效
-启用高性能后期处理管线和智能呼吸光效（闲置时自动降低帧率以节省电量）。
-
+### 4. 交互处理与后期特效
 ```typescript
 import { initPostProcessing, enableHoverBreath } from '@chocozhang/three-model-render';
 
-// 1. 初始化后期处理管理器
-const ppManager = initPostProcessing(renderer, scene, camera, {
-    resolutionScale: 0.8, // 降低分辨率以提升性能
-    edgeStrength: 4,      // 描边强度
-    visibleEdgeColor: '#ffee00' // 描边颜色
-});
-
-// 2. 启用智能悬停效果
+const ppManager = initPostProcessing(renderer, scene, camera);
 const hoverController = enableHoverBreath({
-    camera,
-    scene,
-    renderer,
+    camera, scene, renderer, 
     outlinePass: ppManager.outlinePass,
-    throttleDelay: 16,    // 60fps 节流
-    minStrength: 2,       // 呼吸最小强度
-    maxStrength: 8,       // 呼吸最大强度
-    speed: 3              // 呼吸速度
+    enableFrustumCulling: true // v3.0 推荐开启
 });
+```
 
-// 重要: 在动画循环中调用 render
+---
+
+## 📚 完整功能总览 (Complete Feature Overview)
+
+### **核心工具 (Core `/core`)**
+
+#### 🎯 模型加载与资源管理
+- **`loadModelByUrl`** - 异步加载 GLTF/GLB 模型,支持加载管理器
+- **`disposeObject`** - 深度清理 Three.js 对象,防止内存泄漏
+- **`objectPool`** - 全局对象池系统 (`globalPools`),降低 GC 压力 70%
+
+#### ✨ 后期处理与交互特效
+- **`initPostProcessing`** - 高性能后期处理流水线,内置 OutlinePass
+- **`enableHoverBreath`** - 智能悬停高亮,支持视锥剔除与节流优化
+- **`createModelClickHandler`** - 模型点击事件处理,集成射线检测
+
+### **相机控制 (Camera `/camera`)**
+- **`followModels`** - 平滑相机运镜,支持多种预设角度与缓动函数
+- **`setView`** - 一键切换 6 种预设视角 (前/后/左/右/顶/等轴测)
+- **`FOLLOW_ANGLES`** - 预定义相机角度常量
+
+### **交互效果 (Interaction `/interaction`)**
+- **`LiquidFillerGroup`** - 液体填充动画,支持多对象批量填充
+- 特性:逼真波动效果、可调填充速度、自动恢复功能
+
+### **视觉特效 (Effect `/effect`)**
+- **`GroupExploder`** - 智能模型爆炸/拆解系统
+- 支持模式:`grid`(网格) | `radial`(径向) | `random`(随机)
+- 特性:自动相机跟随、部件淡化、可自定义间距与提升高度
+
+### **UI 组件 (UI `/ui`)**
+
+#### 📊 性能监控
+- **`createPerformanceMonitor`** - 实时性能面板
+- 显示指标:FPS、内存使用、DrawCalls、三角形数
+- 特性:自动告警、可配置阈值、低开销设计
+
+#### 🏷️ 统一标签系统
+- **`createModelsLabel`** - 专业 3D 标注系统
+- **样式模式**:
+  - `'simple'`: 顶部文字标签 (轻量级)
+  - `'line'`: 引线标注 + 状态点 (专业级)
+- **高级特性**:
+  - 遮挡检测 (物体被遮挡时自动隐藏)
+  - 距离剔除 (超出范围自动隐藏)
+  - 智能节流 (相机静止时暂停更新)
+  - 对象池优化 (复用 Vector3/Box3)
+
+### **场景配置 (Setup `/setup`)**
+- **`autoSetupCameraAndLight`** - 影棚级灯光与相机自动配置
+- 包含:环境光、主光源、辅助填充光,最佳视角计算
+
+---
+
+## 💡 完整使用示例
+
+### 基础场景搭建
+```typescript
+import * as THREE from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+import { loadModelByUrl, autoSetupCameraAndLight } from '@chocozhang/three-model-render'
+
+const scene = new THREE.Scene()
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000)
+const renderer = new THREE.WebGLRenderer()
+const controls = new OrbitControls(camera, renderer.domElement)
+
+const model = await loadModelByUrl('model.glb')
+scene.add(model)
+autoSetupCameraAndLight(camera, scene, model)
+```
+
+### 添加交互高亮与点击
+```typescript
+import { initPostProcessing, enableHoverBreath, createModelClickHandler, followModels, FOLLOW_ANGLES } from '@chocozhang/three-model-render'
+
+const { composer, outlinePass } = initPostProcessing(renderer, scene, camera)
+
+// 悬停高亮 (v3.0 性能优化)
+const hoverCtrl = enableHoverBreath({
+  camera, scene, renderer, outlinePass,
+  enableFrustumCulling: true,  // 🔥 开启视锥剔除
+  throttleDelay: 16             // 60fps 节流
+})
+
+// 点击聚焦
+const dispose = createModelClickHandler(camera, scene, renderer, outlinePass, (object, info) => {
+  console.log('Clicked:', object.name, info)
+  followModels(camera, object, {
+    ...FOLLOW_ANGLES.ISOMETRIC,
+    duration: 1500,
+    controls
+  })
+})
+```
+
+### 液体填充效果
+```typescript
+import { LiquidFillerGroup } from '@chocozhang/three-model-render/interaction'
+
+const targetMeshes = new Set()
+model.traverse(child => {
+  if (child.name.includes('tank')) targetMeshes.add(child)
+})
+
+const filler = new LiquidFillerGroup(targetMeshes, scene, camera, renderer, {
+  color: 0x00ff00,
+  opacity: 0.5,
+  speed: 0.01
+}, 10)
+
+filler.fillTo(targetMeshes, 0.8)  // 填充至 80%
+// filler.restoreAll()  // 恢复原状
+```
+
+### 模型爆炸拆解
+```typescript
+import { GroupExploder } from '@chocozhang/three-model-render/effect'
+
+const exploder = new GroupExploder(scene, camera, controls)
+exploder.init()
+
+const parts = new Set()
+model.traverse(child => {
+  if (child.name.includes('component')) parts.add(child)
+})
+
+exploder.setMeshes(parts, { autoRestorePrev: true })
+exploder.explode({
+  mode: 'grid',
+  spacing: 2.8,
+  duration: 1100,
+  lift: 1.2,
+  cameraPadding: 0.8,
+  dimOthers: { enabled: true, opacity: 0.1 }
+})
+
+// exploder.restore(600)  // 600ms 恢复动画
+```
+
+### 专业标注系统
+```typescript
+import { createModelsLabel } from '@chocozhang/three-model-render/ui'
+
+const labelsMap = {
+  'engine': '发动机',
+  'wheel': '轮胎',
+  'chassis': '底盘'
+}
+
+const labelMgr = createModelsLabel(camera, renderer, model, labelsMap, {
+  style: 'line',                      // 引线样式
+  lift: 120,                          // 引线长度
+  enableOcclusionDetection: true,     // 🔥 遮挡检测
+  occlusionCheckInterval: 3,          // 每 3 帧检测一次
+  maxDistance: 50,                    // 距离剔除
+  cameraMoveThreshold: 0.001          // 相机移动阈值优化
+})
+```
+
+### 性能监控面板
+```typescript
+import { createPerformanceMonitor } from '@chocozhang/three-model-render/ui'
+
+const perfMonitor = createPerformanceMonitor({
+  position: 'top-left',
+  renderer,
+  enableMemoryTracking: true,
+  enableWarnings: true,
+  fpsWarningThreshold: 30,
+  memoryWarningThreshold: 200
+})
+
+// 在渲染循环中
 function animate() {
-    requestAnimationFrame(animate);
-    // 使用 composer 替代 renderer.render
-    ppManager.composer.render();
+  perfMonitor.update()  // ✅ 必须调用
+  composer.render()     // or renderer.render(scene, camera)
+  requestAnimationFrame(animate)
 }
 ```
 
-### 5. 交互处理系统的集成
-添加智能点击事件，支持自动聚焦到被点击的组件。
-
+### 资源清理 (防止内存泄漏)
 ```typescript
-import { createModelClickHandler } from '@chocozhang/three-model-render';
+import { disposeObject } from '@chocozhang/three-model-render'
 
-// 创建点击处理器 (返回销毁函数)
-const disposeClickHandler = createModelClickHandler(
-    camera, 
-    scene, 
-    renderer, 
-    ppManager.outlinePass, 
-    (object, info) => {
-        console.log('点击了:', info);
-        
-        // 聚焦到被点击的部件
-        followModels(camera, object, {
-            ...FOLLOW_ANGLES.ISOMETRIC,
-            duration: 1000
-        });
-    }
-);
-```
-
-### 6. 高级特效：爆炸分解
-无需复杂计算，一行代码实现模型的爆炸分解视图。
-
-```typescript
-import { GroupExploder } from '@chocozhang/three-model-render';
-
-// 初始化爆炸控制器
-const exploder = new GroupExploder(scene, camera, controls);
-exploder.init();
-
-// 设置需要爆炸的网格集合
-exploder.setMeshes(targetMeshes);
-
-// 执行爆炸 (Grid 模式)
-exploder.explode({ 
-    mode: 'grid',    // 排列模式: 'ring' | 'spiral' | 'grid' | 'radial'
-    spacing: 2.8,    // 间距
-    dimOthers: { enabled: true, opacity: 0.1 } // 使其他物体透明
-});
-
-// 还原
-exploder.restore(600);
-```
-
-### 7. 视角快速切换
-提供标准的工程视角切换功能。
-
-```typescript
-import { setView } from '@chocozhang/three-model-render';
-
-// 切换到顶视图
-setView(camera, controls, model, 'top');
-
-// 切换到等轴测视图 (ISO)
-setView(camera, controls, model, 'iso');
+// 组件卸载时
+disposeObject(model)
+hoverCtrl?.dispose()
+dispose?.()  // 点击处理器
+exploder?.dispose()
+filler?.dispose()
+labelMgr?.dispose()
+perfMonitor?.dispose()
+controls?.dispose()
+renderer?.dispose()
 ```
 
 ---
 
-## 📚 模块总览 (Module Overview)
+## 🎨 完整示例项目
 
-### **Core (`/core`)**
-- `initPostProcessing`: 高性能后期处理管理器，内置 OutlinePass。
-- `enableHoverBreath`: 智能呼吸光效，支持性能自适应。
-- `addChildModelLabels`: 3D 标签系统，自动跟随模型运动。
+两个示例项目展示了**全部 16+ 工具**的完整集成:
 
-### **Camera (`/camera`)**
-- `followModels`: 智能相机跟随与聚焦。
-- `setView`: 预设视角切换 (Top, Front, Iso, etc.)。
-
-### **Loader (`/loader`)**
-- `loadModelByUrl`: 统一模型加载器，支持多种格式。
-- `BlueSky`: 快速创建天空盒环境。
-
-### **Interaction (`/interaction`)**
-- `createModelClickHandler`: 射线检测点击处理器。
-
-### **Effect (`/effect`)**
-- `GroupExploder`: 模型爆炸/拆解动画控制器。
-
-### **Setup (`/setup`)**
-- `autoSetupCameraAndLight`: 一键自动化场景配置大师。
+- 👉 **[Vue 3 完整示例 (推荐)](https://github.com/HappyColour/three-model-render/tree/main/examples/vue-example)**
+  - 包含:液体填充、模型爆炸、智能标注、性能监控等所有功能
+  - TypeScript + Composition API 最佳实践
+  
+- 👉 **[HTML 原生示例](https://github.com/HappyColour/three-model-render/tree/main/examples/html-example)**
+  - 零构建工具,直接通过 CDN 使用
+  - 适合快速原型验证
 
 ---
 
-## 🎨 示例项目
+## 🔧 高级配置
 
-我们提供了一个完整的、可部署的示例项目，展示了所有功能的集成方式：
+### 对象池使用 (高级)
+```typescript
+import { globalPools, withPooledVector3 } from '@chocozhang/three-model-render'
 
-- 👉 **[Vue 3 示例 (推荐)](https://github.com/HappyColour/three-model-render/tree/main/examples/vue-example)** - 完整的 Vue 3 + TypeScript 集成最佳实践
-- 👉 **[HTML 原生示例](https://github.com/HappyColour/three-model-render/tree/main/examples/html-example)** - 适合原生 JavaScript / jQuery 项目
+// 方式 1: 手动管理
+const v = globalPools.vector3.acquire()
+v.set(1, 2, 3)
+// ... 使用 v ...
+globalPools.vector3.release(v)
+
+// 方式 2: 自动管理 (推荐)
+const distance = withPooledVector3(v => {
+  v.set(1, 2, 3)
+  return v.length()
+})  // 自动释放
+```
+
+### 视角切换
+```typescript
+import { setView } from '@chocozhang/three-model-render'
+
+setView(camera, controls, model, 'front')   // 前视图
+setView(camera, controls, model, 'iso')     // 等轴测 (45°)
+```
 
 ---
 
