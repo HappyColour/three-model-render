@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@chocozhang/three-model-render':
         specifier: latest
-        version: 1.0.4(three@0.181.2)
+        version: 2.0.1(three@0.181.2)
       three:
         specifier: ^0.181.2
         version: 0.181.2
@@ -44,8 +44,9 @@ packages:
     resolution: {integrity: sha512-qQ5m48eI/MFLQ5PxQj4PFaprjyCTLI37ElWMmNs0K8Lk3dVeOdNpB3ks8jc7yM5CDmVC73eMVk/trk3fgmrUpA==}
     engines: {node: '>=6.9.0'}
 
-  '@chocozhang/three-model-render@1.0.4':
-    resolution: {integrity: sha512-JPn+tQE/cmqvpFS/j4ly3tllfxuZhgK2HT11MhVoUS8/X9fUFINkiw3fwXoBlYXaSxOHaWzoV0KNrlsb12yW5w==}
+  '@chocozhang/three-model-render@2.0.1':
+    resolution: {integrity: sha512-WokELn8aWa4M+UyZFDMFvNJdtQYkVVzLbsU0hGnd0a+OyMfO937BjVv2DqfE2NiSalyuU19NwpsOhzMIyxC3fw==}
+    engines: {node: '>=24.3.0'}
     peerDependencies:
       three: '>=0.160.0'
 
@@ -440,7 +441,7 @@ snapshots:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
 
-  '@chocozhang/three-model-render@1.0.4(three@0.181.2)':
+  '@chocozhang/three-model-render@2.0.1(three@0.181.2)':
     dependencies:
       three: 0.181.2
 
