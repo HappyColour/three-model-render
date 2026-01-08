@@ -141,7 +141,7 @@ export class Vector3Pool extends ObjectPool<THREE.Vector3> {
         obj.set(0, 0, 0)
     }
 
-    protected dispose(obj: THREE.Vector3): void {
+    protected dispose(_obj: THREE.Vector3): void {
         // Vector3 has no dispose method, just dereference
     }
 }
@@ -168,7 +168,7 @@ export class Box3Pool extends ObjectPool<THREE.Box3> {
         obj.makeEmpty()
     }
 
-    protected dispose(obj: THREE.Box3): void {
+    protected dispose(_obj: THREE.Box3): void {
         // Box3 has no dispose method
     }
 }
@@ -195,7 +195,7 @@ export class Matrix4Pool extends ObjectPool<THREE.Matrix4> {
         obj.identity()
     }
 
-    protected dispose(obj: THREE.Matrix4): void {
+    protected dispose(_obj: THREE.Matrix4): void {
         // Matrix4 has no dispose method
     }
 }
@@ -222,7 +222,7 @@ export class QuaternionPool extends ObjectPool<THREE.Quaternion> {
         obj.set(0, 0, 0, 1)
     }
 
-    protected dispose(obj: THREE.Quaternion): void {
+    protected dispose(_obj: THREE.Quaternion): void {
         // Quaternion has no dispose method
     }
 }

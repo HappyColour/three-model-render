@@ -422,7 +422,7 @@ export function createModelsLabel(
       (cfg.occlusionCheckInterval === 0 || frameCounter % cfg.occlusionCheckInterval! === 0);
 
     labels.forEach((labelData) => {
-      const { el, wrapper, dot, line, object } = labelData;
+      const { wrapper, dot, line, object } = labelData;
       const topWorld = getObjectTopPosition(labelData);  // Use cache
       const topNDC = globalPools.vector3.acquire();
       topNDC.copy(topWorld).project(camera);
